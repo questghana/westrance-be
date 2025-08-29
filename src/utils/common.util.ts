@@ -1,12 +1,8 @@
 import { sign, verify, SignOptions } from "jsonwebtoken";
+import { env } from "./env.utils";
 
-export const generateJwt = (
-  payload: any,
-  expiresIn?: SignOptions["expiresIn"]
-) => {
-  return sign(payload, process.env.JWT_SECRET!, {
-    expiresIn: expiresIn ?? "1d",
-  });
+export const generateJwt = (payload: object, expiresIn: string | number = '1h') => {
+  return sign(payload, env.JWT_SECRET, { expiresIn } as SignOptions);
 };
 
 export const verifyJwt = <T = {}>(token: string) => {

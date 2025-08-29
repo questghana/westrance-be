@@ -14,7 +14,6 @@ import cookieParser from "cookie-parser";
 // import session from "express-session";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { auth } from "./lib/auth";
 import { config } from "dotenv";
 import express from "express";
 import morgan from "morgan";
@@ -24,6 +23,7 @@ import { addEmployeeRoutes } from "./routes/employee.routes";
 import { signInRoutes } from "./routes/signin.routes";
 import { ticketRoutes } from "./routes/ticket.routes";
 import { HospitalRoutes } from "./routes/hospital.routes";
+import { auth } from "./lib/auth";
 
 config();
 const app = express();
@@ -33,10 +33,10 @@ const port = Number(process.env.PORT) || 3000;
 const isProduction = app.get("env") === "production";
 
 const corsOptions: CorsOptions = {
-  origin: process.env.FRONTEND_DOMAIN,
+  origin: ["http://localhost:4000", "https://westrance-fe.vercel.app"], 
   credentials: true,
 };
-
+console.log(process.env.FRONTEND_DOMAIN)
 const io = new Server(httpServer, {
   cors: corsOptions,
 });
@@ -60,6 +60,11 @@ app.all("/api/auth/*", toNodeHandler(auth));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // app.use(throttle("default"));
+// app.get("/temp-auth-me", (_, res) => {
+//   console.log("Temporary /temp-auth-me route hit.");
+//   res.json({ message: "Temporary Auth Me route works!" });
+// });
+// app.get("/api/auth/me", authme); // Directly added to server.ts
 app.get("/test", (_, res) => {
   res.json("test server chala bro?");
   console.log(port, "Port Running 🎅");

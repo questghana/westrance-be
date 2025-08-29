@@ -17,7 +17,6 @@ const schemaObject = z.object({
   COOKIE_SECRET: z.string(),
   BREVO_API_KEY: z.string(),
   JWT_SECRET: z.string(),
-  database: z.string(),
 });
 
 const envSchema = schemaObject.safeParse(process.env);

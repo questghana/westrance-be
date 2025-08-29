@@ -9,7 +9,7 @@ companyregisterRoutes.post("/register", companyRegisterController);
 companyregisterRoutes.put("/companydetail/update", verifyToken, updateCompanyDetail);
 companyregisterRoutes.get("/companydetails", verifyToken, getCompanyDetail);
 companyregisterRoutes.get("/employees", verifyToken, getCompanyEmployees)
-companyregisterRoutes.get("/companydetail", getHospitalPharmacy)
+companyregisterRoutes.get("/companydetail", verifyToken, getHospitalPharmacy)
 companyregisterRoutes.get("/employee/details/:id", verifyToken, getEmployeeWithDependents)
 companyregisterRoutes.delete("/employee/:id", verifyToken, deleteEmployee)
 companyregisterRoutes.post("/employee/status", verifyToken, ActiveDeactiveemployee)
