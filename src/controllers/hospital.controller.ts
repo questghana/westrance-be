@@ -1,13 +1,13 @@
 import cloudinary from "@/configs/cloudniary.config";
 import { database } from "@/configs/connection.config";
 import { AuthenticatedRequest } from "@/middlewares/auth.middleware";
-import { HospitalRolesManagement, account, addDependents, addEmployee, addHospitalDependents, addHospitalEmployee, users, addEmployeeInvoice } from "@/schema/schema";
+import { HospitalRolesManagement, account, addDependents, addEmployee, addHospitalDependents, addHospitalEmployee, users, addEmployeeInvoice, companyregister } from "@/schema/schema";
 import generateEmployeeId from "@/utils/generate.employeeid";
 import { generateBetterAuthPasswordHash } from "@/utils/password-hash.util";
 import { createId } from "@paralleldrive/cuid2";
 import { and, or, eq, ilike } from "drizzle-orm";
 import { Request, Response } from "express";
-
+import PDFDocument from "pdfkit";
 
 
 
@@ -740,6 +740,7 @@ export const getHospitalDepartment = async (_req: AuthenticatedRequest, res: Res
         return res.status(500).json({ error: "Something went wrong" });
     }
 }
+
 export const getPatientByNameAndId = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const { SelectPatient, employeeId } = req.query;
@@ -893,10 +894,11 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
 export const getInvoice = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const user = req.user;
-        console.log(user)
         if (!user) return res.status(401).json({ error: "Unauthorized" });
 
         let invoices;
+
+        // const [company] = await database.select().from(companyregister)
 
         if (user.role === "CompanyAdmin") {
             invoices = await database.select().from(addEmployeeInvoice);
@@ -926,3 +928,48 @@ export const deleteInvoice = async (req: AuthenticatedRequest, res: Response) =>
         return res.status(500).json({ error: "Something went wrong" });
     }
 };
+
+export const downloadInvoice = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const { id } = req.params
+
+        const invoice = await database.query.addEmployeeInvoice.findFirst({
+            where: (fields, { eq }) => eq(fields.id, id),
+        })
+
+        if (!invoice) {
+            return res.status(404).json({ message: "Invoice Not Found" })
+        }
+
+        const doc = new PDFDocument()
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename=invoice_${id}.pdf`);
+
+        doc.pipe(res)
+        doc.fontSize(20).text("Invoice", { align: "center" })
+        doc.moveDown()
+        doc.fontSize(12).text(`Invoice ID: ${invoice.EmployeeId}`);
+        doc.text(`Patient Name: ${invoice.PatientName}`);
+        doc.text(`Hospital: ${invoice.HospitalName}`);
+        doc.text(`Amount: ${invoice.Amount}`);
+        doc.text(`Benefit Used: ${invoice.BenefitUsed}`);
+        doc.text(`Remaining Balance: ${invoice.RemainingBalance}`);
+        doc.text(`Submitted Date: ${invoice.SubmittedDate}`);
+        doc.end();
+    } catch (error) {
+        console.error("Error generating invoice PDF:", error);
+        res.status(500).json({ error: "Something went wrong while generating invoice" });
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+

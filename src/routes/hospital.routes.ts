@@ -1,4 +1,4 @@
-import { ActiveDeactiveHospitalEmployee, SearchPatientById, addHospitalDependentController, addHospitalEmployeeController, addHospitalEmployeeRoleManagement, addInvoice, deleteHospitalEmployee, deleteInvoice, editHospitalEmployee, getHospitalDepartment, getHospitalEmployees, getHospitalEmployeesWithDependents, getInvoice, getPatientByNameAndId } from "@/controllers/hospital.controller";
+import { ActiveDeactiveHospitalEmployee, SearchPatientById, addHospitalDependentController, addHospitalEmployeeController, addHospitalEmployeeRoleManagement, addInvoice, deleteHospitalEmployee, deleteInvoice, downloadInvoice, editHospitalEmployee, getHospitalDepartment, getHospitalEmployees, getHospitalEmployeesWithDependents, getInvoice, getPatientByNameAndId } from "@/controllers/hospital.controller";
 import { verifyToken } from "@/middlewares/auth.middleware";
 import { Router } from "express";
 
@@ -20,6 +20,6 @@ HospitalRoutes.get("/patientByNameAndId/search", verifyToken, getPatientByNameAn
 HospitalRoutes.post("/addinvoice", verifyToken, addInvoice)
 HospitalRoutes.get("/getinvoice", verifyToken, getInvoice)
 HospitalRoutes.delete("/deleteinvoice/:id", verifyToken, deleteInvoice)
-
+HospitalRoutes.get("/invoice/download/:id", verifyToken, downloadInvoice)
 
 export { HospitalRoutes };

@@ -78,14 +78,19 @@ export interface AuthenticatedRequest extends Request {
 
 // Step 2: Middleware to decode JWT and attach to req.user
 export const verifyToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  let token: string | undefined;
   const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Unauthorized - No token" });
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.split(" ")[1];
+  }
+  if(!token || req.cookies?.token){
+    token = req.cookies?.token
   }
 
-
-  const token = authHeader.split(" ")[1];
+  if(!token){
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  
   const payload = verifyJwt<{ userId: string; email: string; role: string }>(token);
   if (!payload || !payload.userId) {
     return res.status(401).json({ error: "Invalid or expired token" });

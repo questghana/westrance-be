@@ -295,6 +295,7 @@ export const editEmployee = async (req: Request, res: Response) => {
         return res.status(500).json({ error: "Server Error" });
     }
 }
+
 export const deleteEmployee = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const { id } = req.params;
@@ -425,6 +426,7 @@ export const getCompanyDetail = async (req: AuthenticatedRequest, res: Response)
         return res.status(500).json({ error: "Something went wrong" });
     }
 }
+
 export const updateCompanyDetail = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const companyId = req.user?.userId

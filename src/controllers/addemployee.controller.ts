@@ -241,7 +241,7 @@ export const updateEmployeeController = async (req: AuthenticatedRequest, res: R
         CurrentPassword,
         accountRecord[0].password!
       );
-
+      
       if (!isPasswordValid) {
         return res.status(400).json({ error: "Current password is incorrect" });
       }
