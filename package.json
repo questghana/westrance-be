@@ -2,18 +2,19 @@
   "name": "westrance-be",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
-    "build": "tsc && tsc-alias && npm run dbgenerate",
-    "dev": "ts-node-dev -r tsconfig-paths/register src/server.ts",
-    "start": "node dist/server.js && npm run dbgenerate",
-    "dbgenerate": "drizzle-kit generate",
-    "dbpush": "drizzle-kit push",
-    "dbstudio": "drizzle-kit studio --port 5000 --host localhost",
-    "dbdrop": "drizzle-kit drop",
-    "dbintrospect": "drizzle-kit introspect",
-    "swagger": "ts-node ./src/configs/swagger.config.ts",
-    "cleanup": "ts-node -r tsconfig-paths/register src/utils/cleanup-db.ts"
-  },
+"scripts": {
+  "build": "tsc && tsc-alias && npm run dbgenerate",
+  "dev": "ts-node-dev -r tsconfig-paths/register src/server.ts",
+  "prestart": "npm run dbpush",
+  "start": "node dist/server.js",
+  "dbgenerate": "drizzle-kit generate",
+  "dbpush": "drizzle-kit push",
+  "dbstudio": "drizzle-kit studio --port 5000 --host localhost",
+  "dbdrop": "drizzle-kit drop",
+  "dbintrospect": "drizzle-kit introspect",
+  "swagger": "ts-node ./src/configs/swagger.config.ts",
+  "cleanup": "ts-node -r tsconfig-paths/register src/utils/cleanup-db.ts"
+},
   "license": "ISC",
   "devDependencies": {
     "@types/bcrypt": "^5.0.0",
