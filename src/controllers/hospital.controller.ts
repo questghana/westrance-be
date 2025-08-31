@@ -1,7 +1,7 @@
 import cloudinary from "@/configs/cloudniary.config";
 import { database } from "@/configs/connection.config";
 import { AuthenticatedRequest } from "@/middlewares/auth.middleware";
-import { HospitalRolesManagement, account, addDependents, addEmployee, addHospitalDependents, addHospitalEmployee, users, addEmployeeInvoice, companyregister } from "@/schema/schema";
+import { HospitalRolesManagement, account, addDependents, addEmployee, addHospitalDependents, addHospitalEmployee, users, addEmployeeInvoice } from "@/schema/schema";
 import generateEmployeeId from "@/utils/generate.employeeid";
 import { generateBetterAuthPasswordHash } from "@/utils/password-hash.util";
 import { createId } from "@paralleldrive/cuid2";
