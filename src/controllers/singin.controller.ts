@@ -223,89 +223,89 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 1000 * 60 * 60 * 24, // 1 day    
     };
-      console.log("Attempting to set cookie...");
-      res.cookie('token', token, cookieOptions);
-      console.log("Cookie setting attempted.");
+    console.log("Attempting to set cookie...");
+    res.cookie('token', token, cookieOptions);
+    console.log("Cookie setting attempted.");
 
-      // Role-specific data
-      if(role === "CompanyAdmin") {
-        const company = await database
-          .select()
-          .from(companyregister)
-          .where(eq(companyregister.administrativeEmail, email))
-          .limit(1);
+    // Role-specific data
+    if (role === "CompanyAdmin") {
+      const company = await database
+        .select()
+        .from(companyregister)
+        .where(eq(companyregister.administrativeEmail, email))
+        .limit(1);
 
-    return res.status(200).json({
-      message: "Company login success",
-      data: {
-        user: { ...user[0], role },
-        company: company[0],
-      }
-    });
-  }
+      return res.status(200).json({
+        message: "Company login success",
+        data: {
+          user: { ...user[0], role },
+          company: company[0],
+        }
+      });
+    }
 
     if (role === "Employee") {
-    const employee = await database
-      .select()
-      .from(addEmployee)
-      .where(eq(addEmployee.emailAddress, email))
-      .limit(1);
+      const employee = await database
+        .select()
+        .from(addEmployee)
+        .where(eq(addEmployee.emailAddress, email))
+        .limit(1);
 
-    if (employee.length === 0) {
-      return res.status(401).json({ error: "Employee not found" });
+      if (employee.length === 0) {
+        return res.status(401).json({ error: "Employee not found" });
+      }
+
+      if (!employee[0].isActive) {
+        return res.status(403).json({ error: "Your account has been deactivated by your company." });
+      }
+
+
+      return res.status(200).json({
+        message: "Employee login success",
+        data: {
+          user: { ...user[0], role },
+          employee: employee[0],
+        }
+      });
     }
 
-    if (!employee[0].isActive) {
-      return res.status(403).json({ error: "Your account has been deactivated by your company." });
+    if (role === "Hospital Employee") {
+      const HospitalEmployee = await database
+        .select()
+        .from(addHospitalEmployee)
+        .where(eq(addHospitalEmployee.emailAddress, email))
+        .limit(1)
+
+      if (HospitalEmployee.length === 0) {
+        return res.status(401).json({ error: "Hospital Employee Not Found" })
+      }
+
+      if (!HospitalEmployee[0].isActive) {
+        return res.status(403).json({ error: "Your account has been deactivated by your Hospital" })
+      }
+
+      return res.status(200).json({
+        message: "Hospital Employee Login Successfully",
+        data: {
+          user: { ...user[0], role },
+          employee: HospitalEmployee[0]
+        }
+      })
+
+
     }
-
-
+    // Default case for fallback role
     return res.status(200).json({
-      message: "Employee login success",
+      message: "User login success",
       data: {
-        user: { ...user[0], role },
-        employee: employee[0],
+        user: { ...user[0], role: role || "User" },
       }
     });
+
+  } catch (error) {
+    console.error("Unified login error:", error);
+    return res.status(500).json({ error: "Something went wrong during login" });
   }
-
-  if (role === "Hospital Employee") {
-    const HospitalEmployee = await database
-      .select()
-      .from(addHospitalEmployee)
-      .where(eq(addHospitalEmployee.emailAddress, email))
-      .limit(1)
-
-    if (HospitalEmployee.length === 0) {
-      return res.status(401).json({ error: "Hospital Employee Not Found" })
-    }
-
-    if (!HospitalEmployee[0].isActive) {
-      return res.status(403).json({ error: "Your account has been deactivated by your Hospital" })
-    }
-
-    return res.status(200).json({
-      message: "Hospital Employee Login Successfully",
-      data: {
-        user: { ...user[0], role },
-        employee: HospitalEmployee[0]
-      }
-    })
-
-
-  }
-  // Default case for fallback role
-  return res.status(200).json({
-    message: "User login success",
-    data: {
-      user: { ...user[0], role: role || "User" },
-    }
-  });
-
-} catch (error) {
-  console.error("Unified login error:", error);
-  return res.status(500).json({ error: "Something went wrong during login" });
-}
 };
 
 export const forgotPassword = async (req: Request, res: Response) => {
@@ -326,7 +326,8 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: "1h" });
 
-    const resetLink = `http://localhost:4000/resetpassword?token=${token}`;
+    // const resetLink = `http://localhost:4000/resetpassword?token=${token}`;
+    const resetLink = `${process.env.FRONTEND_DOMAIN}/resetpassword?token=${token}`;
 
     await sendEmail({
       to: email,
@@ -406,7 +407,6 @@ export const resetPassword = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: "Something went wrong." });
   }
 }
-
 
 export const logout = async (_req: Request, res: Response) => {
   try {

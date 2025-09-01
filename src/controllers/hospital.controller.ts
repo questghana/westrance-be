@@ -7,7 +7,7 @@ import { generateBetterAuthPasswordHash } from "@/utils/password-hash.util";
 import { createId } from "@paralleldrive/cuid2";
 import { and, or, eq, ilike } from "drizzle-orm";
 import { Request, Response } from "express";
-import PDFDocument from "pdfkit";
+// import PDFDocument from "pdfkit";
 
 
 
@@ -941,21 +941,9 @@ export const downloadInvoice = async (req: AuthenticatedRequest, res: Response) 
             return res.status(404).json({ message: "Invoice Not Found" })
         }
 
-        const doc = new PDFDocument()
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", `attachment; filename=invoice_${id}.pdf`);
-
-        doc.pipe(res)
-        doc.fontSize(20).text("Invoice", { align: "center" })
-        doc.moveDown()
-        doc.fontSize(12).text(`Invoice ID: ${invoice.EmployeeId}`);
-        doc.text(`Patient Name: ${invoice.PatientName}`);
-        doc.text(`Hospital: ${invoice.HospitalName}`);
-        doc.text(`Amount: ${invoice.Amount}`);
-        doc.text(`Benefit Used: ${invoice.BenefitUsed}`);
-        doc.text(`Remaining Balance: ${invoice.RemainingBalance}`);
-        doc.text(`Submitted Date: ${invoice.SubmittedDate}`);
-        doc.end();
+        return res.status(200).json({
+            invoice
+        })
     } catch (error) {
         console.error("Error generating invoice PDF:", error);
         res.status(500).json({ error: "Something went wrong while generating invoice" });
