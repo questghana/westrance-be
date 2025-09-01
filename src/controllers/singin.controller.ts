@@ -332,7 +332,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     await sendEmail({
       to: email,
       subject: "🔐 Reset Your Password - Westrance",
-      html: `
+      html:`
       <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;line-height:1.6;color:#333;">
         <!-- Header with Logo -->
         <div style="text-align:center;padding:20px 0;">
