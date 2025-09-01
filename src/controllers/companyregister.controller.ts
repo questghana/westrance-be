@@ -1,8 +1,8 @@
 import { database } from "@/configs/connection.config";
-import { companyregister, users, account, addEmployee, addDependents } from "@/schema/schema";
+import { companyregister, users, account, addEmployee, addDependents, addEmployeeInvoice, addHospitalEmployee } from "@/schema/schema";
 import { logger } from "@/utils/logger.util";
 import { Request, Response } from "express";
-import { eq, or } from "drizzle-orm";
+import { eq, or, count } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { generateBetterAuthPasswordHash } from "@/utils/password-hash.util";
 import { AuthenticatedRequest } from "@/middlewares/auth.middleware";
@@ -552,3 +552,54 @@ export const getCompanyEmployeesWithDependentsCount = async (req: AuthenticatedR
     }
 };
 
+export const getInvoiceByCompany = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const user = req.user;
+        if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const offset = (page - 1) * limit;
+
+        let invoicesQuery = database
+            .select({
+                id: addEmployeeInvoice.id,
+                EmployeeId: addEmployeeInvoice.EmployeeId,
+                companyId: addEmployeeInvoice.companyId,
+                HospitalName: addEmployeeInvoice.HospitalName,
+                PatientName: addEmployeeInvoice.PatientName,
+                Amount: addEmployeeInvoice.Amount,
+                RemainingBalance: addEmployeeInvoice.RemainingBalance,
+                BenefitUsed: addEmployeeInvoice.BenefitUsed,
+                SubmittedDate: addEmployeeInvoice.SubmittedDate,
+                employeeAmountPackage: addEmployee.amountPackage,
+                hospitalEmployeeAmountPackage: addHospitalEmployee.amountPackage,
+            })
+            .from(addEmployeeInvoice)
+            .leftJoin(addEmployee, eq(addEmployeeInvoice.EmployeeId, addEmployee.employeeId))
+            .leftJoin(addHospitalEmployee, eq(addEmployeeInvoice.EmployeeId, addHospitalEmployee.employeeId))
+            .where(eq(addEmployeeInvoice.companyId, user.userId));
+            
+
+        const invoices = await invoicesQuery.offset(offset).limit(limit);
+
+        const totalInvoices = await database
+            .select({ count: count(addEmployeeInvoice.id) })
+            .from(addEmployeeInvoice)
+            .where(eq(addEmployeeInvoice.companyId, user.userId));
+
+        const totalCount = totalInvoices[0].count;
+        const totalPages = Math.ceil(totalCount / limit);
+
+        return res.status(200).json({
+            invoices,
+            totalCount,
+            totalPages,
+            currentPage: page,
+            limit,
+        });
+    } catch (error) {
+        console.error("error", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};

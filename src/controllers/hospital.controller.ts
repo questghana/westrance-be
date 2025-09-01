@@ -869,19 +869,6 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
             SubmittedDate,
         });
 
-        // // 6. Update balance (depends on employee type)
-        // if (employee.role === "Hospital Employee") {
-        //     await database
-        //         .update(addHospitalEmployee)
-        //         .set({ amountPackage: newBalance.toString() })
-        //         .where(eq(addHospitalEmployee.employeeId, EmployeeId));
-        // } else {
-        //     await database
-        //         .update(addEmployee)
-        //         .set({ amountPackage: newBalance.toString() })
-        //         .where(eq(addEmployee.employeeId, EmployeeId));
-        // }
-
         return res.status(200).json({
             message: "Invoice added successfully",
         });
@@ -901,7 +888,7 @@ export const getInvoice = async (req: AuthenticatedRequest, res: Response) => {
         // const [company] = await database.select().from(companyregister)
 
         if (user.role === "CompanyAdmin") {
-            invoices = await database.select().from(addEmployeeInvoice);
+            invoices = await database.select().from(addEmployeeInvoice).where(eq(addEmployeeInvoice.companyId, user.userId));
         } else {
             invoices = await database
                 .select()
