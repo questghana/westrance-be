@@ -1,0 +1,2 @@
+ALTER TABLE "CreateTicket" ADD COLUMN "company_id" varchar(128) NOT NULL;--> statement-breakpoint
+ALTER TABLE "CreateTicket" ADD CONSTRAINT "CreateTicket_company_id_Companyregister_company_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."Companyregister"("company_id") ON DELETE cascade ON UPDATE no action;

@@ -2,7 +2,7 @@ import { database } from "@/configs/connection.config";
 import { companyregister, users, account, addEmployee, addDependents, addEmployeeInvoice, addHospitalEmployee } from "@/schema/schema";
 import { logger } from "@/utils/logger.util";
 import { Request, Response } from "express";
-import { eq, or, count } from "drizzle-orm";
+import { eq, sql, or } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { generateBetterAuthPasswordHash } from "@/utils/password-hash.util";
 import { AuthenticatedRequest } from "@/middlewares/auth.middleware";
@@ -169,10 +169,29 @@ export const getCompanyEmployees = async (req: AuthenticatedRequest, res: Respon
         if (!userId) {
             return res.status(401).json({ error: "Unauthorized" });
         }
-        const employees = await database.select().from(addEmployee).where(eq(addEmployee.companyUserId, userId))
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const offset = (page - 1) * limit
+        const employees = await database
+            .select()
+            .from(addEmployee)
+            .where(eq(addEmployee.companyUserId, userId))
+            .limit(limit)
+            .offset(offset)
+
+        const [{ count }] = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(addEmployee)
+            .where(eq(addEmployee.companyUserId, userId))
+
         return res.status(200).json({
             employees,
-            count: employees.length
+            pagination: {
+                total: count,
+                page,
+                limit,
+                totalPages: Math.ceil(count / limit)
+            }
         });
     } catch (error) {
         console.error("Failed to fetch employees", error);
@@ -382,8 +401,13 @@ export const ActiveDeactiveemployee = async (req: AuthenticatedRequest, res: Res
     }
 };
 
-export const getHospitalPharmacy = async (_req: Request, res: Response) => {
+export const getHospitalPharmacy = async (req: Request, res: Response) => {
     try {
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const offset = (page - 1) * limit;
+
+        // Paginated data
         const companyDetail = await database
             .select()
             .from(companyregister)
@@ -392,24 +416,42 @@ export const getHospitalPharmacy = async (_req: Request, res: Response) => {
                     eq(companyregister.companyType, "Hospital"),
                     eq(companyregister.companyType, "Pharmacy")
                 )
-            );
+            )
+            .limit(limit)
+            .offset(offset);
 
-        const hospital = companyDetail.filter((item) => item.companyType === "Hospital");
-        const pharmacy = companyDetail.filter((item) => item.companyType === "Pharmacy");
+        // Total Hospital count
+        const [{ hospitalCount }] = await database
+            .select({ hospitalCount: sql<number>`count(*)`.mapWith(Number)})
+            .from(companyregister)
+            .where(eq(companyregister.companyType, "Hospital"));
 
+        // Total Pharmacy count
+        const [{ pharmacyCount }] = await database
+            .select({ pharmacyCount: sql<number>`count(*)`.mapWith(Number)})
+            .from(companyregister)
+            .where(eq(companyregister.companyType, "Pharmacy"));
 
-        // 3. Send both in response
+        // Total records (Hospital + Pharmacy)
+        const total = hospitalCount + pharmacyCount;
+
         return res.status(200).json({
-            Hospitalcount: hospital.length,
-            Pharmacycount: pharmacy.length,
-            companyDetail
+            companyDetail,
+            Hospitalcount: hospitalCount,
+            Pharmacycount: pharmacyCount,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
         });
 
     } catch (error) {
         console.error("Failed to fetch company detail", error);
         return res.status(500).json({ error: "Something went wrong" });
     }
-}
+};
 
 export const getCompanyDetail = async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -561,7 +603,8 @@ export const getInvoiceByCompany = async (req: AuthenticatedRequest, res: Respon
         const limit = parseInt(req.query.limit as string) || 10;
         const offset = (page - 1) * limit;
 
-        let invoicesQuery = database
+        // Paginated invoices
+        const invoices = await database
             .select({
                 id: addEmployeeInvoice.id,
                 EmployeeId: addEmployeeInvoice.EmployeeId,
@@ -578,17 +621,17 @@ export const getInvoiceByCompany = async (req: AuthenticatedRequest, res: Respon
             .from(addEmployeeInvoice)
             .leftJoin(addEmployee, eq(addEmployeeInvoice.EmployeeId, addEmployee.employeeId))
             .leftJoin(addHospitalEmployee, eq(addEmployeeInvoice.EmployeeId, addHospitalEmployee.employeeId))
-            .where(eq(addEmployeeInvoice.companyId, user.userId));
-            
+            .where(eq(addEmployeeInvoice.companyId, user.userId))
+            .offset(offset)
+            .limit(limit);
 
-        const invoices = await invoicesQuery.offset(offset).limit(limit);
-
+        // Total count
         const totalInvoices = await database
-            .select({ count: count(addEmployeeInvoice.id) })
+            .select({ count: sql<number>`count(*)` })
             .from(addEmployeeInvoice)
             .where(eq(addEmployeeInvoice.companyId, user.userId));
 
-        const totalCount = totalInvoices[0].count;
+        const totalCount = totalInvoices[0]?.count || 0;
         const totalPages = Math.ceil(totalCount / limit);
 
         return res.status(200).json({
@@ -599,7 +642,8 @@ export const getInvoiceByCompany = async (req: AuthenticatedRequest, res: Respon
             limit,
         });
     } catch (error) {
-        console.error("error", error);
+        console.error("Failed to fetch invoices", error);
         return res.status(500).json({ error: "Something went wrong" });
     }
 };
+

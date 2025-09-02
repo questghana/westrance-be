@@ -72,7 +72,7 @@ app.get("/test", (_, res) => {
 app.use("/api", signInRoutes);
 app.use("/api/company", companyregisterRoutes);
 app.use("/api/employee", addEmployeeRoutes);
-app.use("/api/create", ticketRoutes);
+app.use("/api/ticket", ticketRoutes);
 app.use("/api/hospital", HospitalRoutes);
 app.use("*", unknownRoutes)
 

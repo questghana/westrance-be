@@ -1,4 +1,4 @@
-import { ActiveDeactiveHospitalEmployee, SearchPatientById, addHospitalDependentController, addHospitalEmployeeController, addHospitalEmployeeRoleManagement, addInvoice, deleteHospitalEmployee, deleteInvoice, downloadInvoice, editHospitalEmployee, getHospitalDepartment, getHospitalEmployees, getHospitalEmployeesWithDependents, getInvoice, getPatientByNameAndId } from "@/controllers/hospital.controller";
+import { ActiveDeactiveHospitalEmployee, SearchPatientById, addHospitalDependentController, addHospitalEmployeeController, addHospitalEmployeeRoleManagement, addInvoice, deleteHospitalEmployee, deleteInvoice, downloadInvoice, editHospitalEmployee, getHospitalDepartment, getHospitalEmployees, getHospitalEmployeesWithDependents, getInvoiceByHospital, getPatientByNameAndId } from "@/controllers/hospital.controller";
 import { verifyToken } from "@/middlewares/auth.middleware";
 import { Router } from "express";
 
@@ -18,7 +18,7 @@ HospitalRoutes.post("/addEmployeeRoles", verifyToken, addHospitalEmployeeRoleMan
 HospitalRoutes.get("/department", verifyToken, getHospitalDepartment)
 HospitalRoutes.get("/patientByNameAndId/search", verifyToken, getPatientByNameAndId)
 HospitalRoutes.post("/addinvoice", verifyToken, addInvoice)
-HospitalRoutes.get("/getinvoice", verifyToken, getInvoice)
+HospitalRoutes.get("/getinvoice", verifyToken, getInvoiceByHospital)
 HospitalRoutes.delete("/deleteinvoice/:id", verifyToken, deleteInvoice)
 HospitalRoutes.get("/invoice/download/:id", verifyToken, downloadInvoice)
 

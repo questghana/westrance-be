@@ -5,7 +5,7 @@ import { HospitalRolesManagement, account, addDependents, addEmployee, addHospit
 import generateEmployeeId from "@/utils/generate.employeeid";
 import { generateBetterAuthPasswordHash } from "@/utils/password-hash.util";
 import { createId } from "@paralleldrive/cuid2";
-import { and, or, eq, ilike } from "drizzle-orm";
+import { and, or, eq, ilike, sql } from "drizzle-orm";
 import { Request, Response } from "express";
 // import PDFDocument from "pdfkit";
 
@@ -380,15 +380,28 @@ export const getHospitalEmployees = async (req: AuthenticatedRequest, res: Respo
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        let employees;
+        // Pagination params from query
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const offset = (page - 1) * limit;
+
+        let employeesQuery;
+        let totalCountQuery;
 
         if (userRole === "CompanyAdmin") {
-            employees = await database
+            employeesQuery = database
                 .select()
                 .from(addHospitalEmployee)
+                .where(eq(addHospitalEmployee.companyUserId, userId))
+                .limit(limit)
+                .offset(offset);
+
+            totalCountQuery = database
+                .select({ count: sql<number>`count(*)` })
+                .from(addHospitalEmployee)
                 .where(eq(addHospitalEmployee.companyUserId, userId));
-        }
-        else if (userRole === "Hospital Employee") {
+
+        } else if (userRole === "Hospital Employee") {
             const [employeeData] = await database
                 .select({ companyUserId: addHospitalEmployee.companyUserId })
                 .from(addHospitalEmployee)
@@ -398,17 +411,38 @@ export const getHospitalEmployees = async (req: AuthenticatedRequest, res: Respo
                 return res.status(404).json({ error: "Employee not found" });
             }
 
-            employees = await database
+            employeesQuery = database
                 .select()
                 .from(addHospitalEmployee)
+                .where(eq(addHospitalEmployee.companyUserId, employeeData.companyUserId))
+                .limit(limit)
+                .offset(offset);
+
+            totalCountQuery = database
+                .select({ count: sql<number>`count(*)` })
+                .from(addHospitalEmployee)
                 .where(eq(addHospitalEmployee.companyUserId, employeeData.companyUserId));
+
         } else {
             return res.status(403).json({ error: "Forbidden" });
         }
 
+        const [employees, totalCountResult] = await Promise.all([
+            employeesQuery,
+            totalCountQuery
+        ]);
+
+        const total = totalCountResult[0]?.count || 0;
+        const totalPages = Math.ceil(total / limit);
+
         return res.status(200).json({
             employees,
-            count: employees.length
+            pagination: {
+                total,
+                totalPages,
+                page,
+                limit
+            }
         });
     } catch (error) {
         console.error("Failed to fetch employees", error);
@@ -878,29 +912,55 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
     }
 };
 
-export const getInvoice = async (req: AuthenticatedRequest, res: Response) => {
+export const getInvoiceByHospital = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const user = req.user;
         if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-        let invoices;
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const offset = (page - 1) * limit;
 
-        // const [company] = await database.select().from(companyregister)
+        // Paginated invoices
+        const invoices = await database
+            .select({
+                id: addEmployeeInvoice.id,
+                EmployeeId: addEmployeeInvoice.EmployeeId,
+                companyId: addEmployeeInvoice.companyId,
+                HospitalName: addEmployeeInvoice.HospitalName,
+                PatientName: addEmployeeInvoice.PatientName,
+                Amount: addEmployeeInvoice.Amount,
+                RemainingBalance: addEmployeeInvoice.RemainingBalance,
+                BenefitUsed: addEmployeeInvoice.BenefitUsed,
+                SubmittedDate: addEmployeeInvoice.SubmittedDate,
+                employeeAmountPackage: addEmployee.amountPackage,
+                hospitalEmployeeAmountPackage: addHospitalEmployee.amountPackage,
+            })
+            .from(addEmployeeInvoice)
+            .leftJoin(addEmployee, eq(addEmployeeInvoice.EmployeeId, addEmployee.employeeId))
+            .leftJoin(addHospitalEmployee, eq(addEmployeeInvoice.EmployeeId, addHospitalEmployee.employeeId))
+            .where(eq(addEmployeeInvoice.companyId, user.userId))
+            .offset(offset)
+            .limit(limit);
 
-        if (user.role === "CompanyAdmin") {
-            invoices = await database.select().from(addEmployeeInvoice).where(eq(addEmployeeInvoice.companyId, user.userId));
-        } else {
-            invoices = await database
-                .select()
-                .from(addEmployeeInvoice)
-                .where(eq(addEmployeeInvoice.companyId, user.userId));
-        }
+        // Total count
+        const totalInvoices = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(addEmployeeInvoice)
+            .where(eq(addEmployeeInvoice.companyId, user.userId));
+
+        const totalCount = totalInvoices[0]?.count || 0;
+        const totalPages = Math.ceil(totalCount / limit);
 
         return res.status(200).json({
             invoices,
+            totalCount,
+            totalPages,
+            currentPage: page,
+            limit,
         });
     } catch (error) {
-        console.error("error", error);
+        console.error("Failed to fetch invoices", error);
         return res.status(500).json({ error: "Something went wrong" });
     }
 };

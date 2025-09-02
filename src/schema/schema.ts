@@ -39,7 +39,6 @@ export const users = pgTable("users", {
   role: text('role')
 });
 
-
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
   expiresAt: timestamp("expires_at").notNull(),
@@ -150,7 +149,8 @@ export const addDependents = pgTable("AddDependents", {
 });
 
 export const createTicket = pgTable("CreateTicket", {
-  id: uuid().primaryKey(),
+  id: uuid().primaryKey(),      
+  companyId: varchar("company_id", {length: 128}).notNull().references(()=> companyregister.companyId, {onDelete: "cascade"}), 
   administrativeName: varchar("administrative_name", { length: 100 }).notNull(),
   administrativeEmail: varchar("administrative_email", { length: 100 }),
   subject: varchar("subject", { length: 100 }).notNull(),
