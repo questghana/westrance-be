@@ -24,6 +24,7 @@ import { signInRoutes } from "./routes/signin.routes";
 import { ticketRoutes } from "./routes/ticket.routes";
 import { HospitalRoutes } from "./routes/hospital.routes";
 import { auth } from "./lib/auth";
+import { adminRoute } from "./routes/admin.routes";
 
 config();
 const app = express();
@@ -74,6 +75,7 @@ app.use("/api/company", companyregisterRoutes);
 app.use("/api/employee", addEmployeeRoutes);
 app.use("/api/ticket", ticketRoutes);
 app.use("/api/hospital", HospitalRoutes);
+app.use("/api/admin", adminRoute);
 app.use("*", unknownRoutes)
 
 httpServer.listen(port as number, () => {

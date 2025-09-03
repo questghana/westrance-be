@@ -13,7 +13,8 @@
   "dbdrop": "drizzle-kit drop",
   "dbintrospect": "drizzle-kit introspect",
   "swagger": "ts-node ./src/configs/swagger.config.ts",
-  "cleanup": "ts-node -r tsconfig-paths/register src/utils/cleanup-db.ts"
+  "cleanup": "ts-node -r tsconfig-paths/register src/utils/cleanup-db.ts",
+  "seed:admin": "ts-node -r tsconfig-paths/register src/scripts/seedAdmin.ts"
 },
   "license": "ISC",
   "devDependencies": {

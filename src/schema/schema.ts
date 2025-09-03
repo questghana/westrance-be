@@ -215,6 +215,14 @@ export const addEmployeeInvoice = pgTable("add_invoice", {
   SubmittedDate: varchar("submit_date", { length: 100 }).notNull(),
 })
 
+// ======= admin ========= // 
+
+export const admins = pgTable("admins",{
+  id: uuid().primaryKey(),
+  email: varchar("admin_email", {length: 255}).notNull().unique(),
+  password: varchar("password", {length: 255}).notNull(),
+})
+
 export const addEmployeeRelations = relations(addEmployee, ({ one }) => ({
   user: one(users, {
     fields: [addEmployee.userId],
