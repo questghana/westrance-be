@@ -1,6 +1,6 @@
 node_modules
 .env.production
 .env
-scripts/seed*.ts
-scripts/seed*.js
+src/scripts/seed*.ts
+src/scripts/seed*.js
 dist

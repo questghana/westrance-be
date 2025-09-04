@@ -8,7 +8,6 @@ const seedAdmin = async () => {
         const email = "admin@example.com";
         const password = "Admin@123";
 
-        // check karo admin already exist to nahi
         const existing = await database.select().from(admins).where(eq(admins.email, email));
         if (existing.length > 0) {
             console.log("⚠️ Admin already exists");
@@ -20,6 +19,7 @@ const seedAdmin = async () => {
         await database.insert(admins).values({
             email,
             password: hashedPassword,
+            role: "admin"
         });
 
         console.log("Admin inserted successfully:", email);

@@ -149,8 +149,8 @@ export const addDependents = pgTable("AddDependents", {
 });
 
 export const createTicket = pgTable("CreateTicket", {
-  id: uuid().primaryKey(),      
-  companyId: varchar("company_id", {length: 128}).notNull().references(()=> companyregister.companyId, {onDelete: "cascade"}), 
+  id: uuid().primaryKey(),
+  companyId: varchar("company_id", { length: 128 }).notNull().references(() => companyregister.companyId, { onDelete: "cascade" }),
   administrativeName: varchar("administrative_name", { length: 100 }).notNull(),
   administrativeEmail: varchar("administrative_email", { length: 100 }),
   subject: varchar("subject", { length: 100 }).notNull(),
@@ -205,7 +205,7 @@ export const HospitalRolesManagement = pgTable("hospital_roles_management", {
 
 export const addEmployeeInvoice = pgTable("add_invoice", {
   id: uuid().primaryKey(),
-  EmployeeId: varchar("employee_id", {length: 14}).notNull(),
+  EmployeeId: varchar("employee_id", { length: 14 }).notNull(),
   companyId: varchar("company_id", { length: 128 }).notNull().references(() => companyregister.companyId, { onDelete: "cascade" }),
   HospitalName: varchar("hospital_name", { length: 100 }).notNull(),
   PatientName: varchar("patient_name", { length: 100 }).notNull(),
@@ -217,10 +217,11 @@ export const addEmployeeInvoice = pgTable("add_invoice", {
 
 // ======= admin ========= // 
 
-export const admins = pgTable("admins",{
+export const admins = pgTable("admins", {
   id: uuid().primaryKey(),
-  email: varchar("admin_email", {length: 255}).notNull().unique(),
-  password: varchar("password", {length: 255}).notNull(),
+  email: varchar("admin_email", { length: 255 }).notNull().unique(),
+  password: varchar("password", { length: 255 }).notNull(),
+  role: varchar("role", { length: 50 }),
 })
 
 export const addEmployeeRelations = relations(addEmployee, ({ one }) => ({

@@ -1,10 +1,11 @@
 import { database } from "@/configs/connection.config";
-import { admins } from "@/schema/schema";
-import { eq } from "drizzle-orm";
+import { addEmployeeInvoice, admins, companyregister } from "@/schema/schema";
+import { eq, desc } from "drizzle-orm";
 import { CookieOptions, Request, Response } from "express";
 import bcrypt from "bcryptjs"
 import { config } from "dotenv";
 import { generateJwt } from "@/utils/common.util";
+import { AuthenticatedRequestAdmin } from "@/middlewares/admin.middleware";
 
 
 config();
@@ -32,27 +33,25 @@ export const adminlogincontroller = async (req: Request, res: Response) => {
             return res.status(401).json({ error: "Invalid credentials" });
         }
 
-        const token = generateJwt({ id: admin.id, role: "admin" }, '1d');
+        const token = generateJwt({ id: admin.id, role: admin.role, email: admin.email }, '1d');
         const cookieOptions: CookieOptions = {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production" ? true : false,
             sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
             maxAge: 1000 * 60 * 60 * 24, // 1 day    
         };
-        console.log("Attempting to set cookie...");
         res.cookie('token', token, cookieOptions);
-        console.log("Cookie setting attempted.");
+        const { password: _password, ...adminWithoutPass } = admin;
 
         return res.status(200).json({
             message: "Admin Login Successfully",
-            admin
+            admin: adminWithoutPass
         })
     } catch (error) {
         console.log(error);
         return res.status(500).json({ error: "Something went wrong during login" });
     }
 }
-
 
 export const adminlogoutcontroller = async (_req: Request, res: Response) => {
     try {
@@ -63,6 +62,66 @@ export const adminlogoutcontroller = async (_req: Request, res: Response) => {
         })
     } catch (error) {
         console.log(error);
-        return res.status(500).json({ error: "Something went wrong during login" });
+        return res.status(500).json({ error: "Something went wrong during logout" });
+    }
+}
+
+export const MostRecentInvoiceByAdmin = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id
+        if (!adminId) {
+            return res.status(401).json({
+                error: "Unauthorized"
+            })
+        }
+
+        const latestInvoice = await database
+            .select()
+            .from(addEmployeeInvoice)
+            .orderBy(desc(addEmployeeInvoice.SubmittedDate))
+
+        if (!latestInvoice) {
+            return res.status(404).json({
+                message: "No invoice found"
+            })
+        }
+
+        return res.status(200).json({
+            latestInvoice
+        })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+}
+
+export const MostRecentRegisterCompany = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id
+        if (!adminId) {
+            return res.status(401).json({
+                error: "Unauthorized"
+            })
+        }
+
+        const latestCompany = await database
+            .select()
+            .from(companyregister)
+            .orderBy(desc(companyregister.createdAt))
+
+        if (!latestCompany) {
+            return res.status(404).json({
+                message: "No Company found"
+            })
+        }
+
+        return res.status(200).json({
+            latestCompany
+        })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: "Something went wrong" });
     }
 }
