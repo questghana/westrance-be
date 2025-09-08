@@ -1,6 +1,6 @@
 import { database } from "@/configs/connection.config";
-import { addEmployeeInvoice, admins, companyregister } from "@/schema/schema";
-import { eq, desc } from "drizzle-orm";
+import { addDependents, addEmployee, addEmployeeInvoice, admins, companyregister } from "@/schema/schema";
+import { eq, desc, and, ne, or, sql } from "drizzle-orm";
 import { CookieOptions, Request, Response } from "express";
 import bcrypt from "bcryptjs"
 import { config } from "dotenv";
@@ -96,7 +96,7 @@ export const MostRecentInvoiceByAdmin = async (req: AuthenticatedRequestAdmin, r
     }
 }
 
-export const MostRecentRegisterCompany = async (req: AuthenticatedRequestAdmin, res: Response) => {
+export const MostRecentRegisterCompanyAdmin = async (req: AuthenticatedRequestAdmin, res: Response) => {
     try {
         const adminId = req.admin?.id
         if (!adminId) {
@@ -119,6 +119,210 @@ export const MostRecentRegisterCompany = async (req: AuthenticatedRequestAdmin, 
         return res.status(200).json({
             latestCompany
         })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+}
+
+export const getCompany = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id;
+        if (!adminId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const offset = (page - 1) * limit;
+
+        const [company, total] = await Promise.all([
+            database
+                .select()
+                .from(companyregister)
+                .where(
+                    and(
+                        ne(companyregister.companyType, "Hospital"),
+                        ne(companyregister.companyType, "Pharmacy")
+                    )
+                )
+                .limit(limit)
+                .offset(offset),
+
+            database
+                .select({ count: sql<number>`count(*)`.as("count") })
+                .from(companyregister)
+                .where(
+                    and(
+                        ne(companyregister.companyType, "Hospital"),
+                        ne(companyregister.companyType, "Pharmacy")
+                    )
+                )
+        ]);
+
+        return res.status(200).json({
+            company,
+            pagination: {
+                total: total[0].count,
+                page,
+                limit,
+                totalPages: Math.ceil(total[0].count / limit),
+            },
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+export const getHospitalPharmacy = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id;
+        if (!adminId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const offset = (page - 1) * limit;
+
+        const [HospitalPharmacy, total] = await Promise.all([
+            database
+                .select()
+                .from(companyregister)
+                .where(
+                    or(
+                        eq(companyregister.companyType, "Hospital"),
+                        eq(companyregister.companyType, "Pharmacy")
+                    )
+                )
+                .limit(limit)
+                .offset(offset),
+
+            database
+                .select({ count: sql<number>`count(*)`.as("count") })
+                .from(companyregister)
+                .where(
+                    or(
+                        eq(companyregister.companyType, "Hospital"),
+                        eq(companyregister.companyType, "Pharmacy")
+                    )
+                )
+        ]);
+
+        return res.status(200).json({
+            HospitalPharmacy,
+            pagination: {
+                total: total[0].count,
+                page,
+                limit,
+                totalPages: Math.ceil(total[0].count / limit),
+            },
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+export const getCompanyDetails = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const { companyId } = req.params;
+
+        const company = await database
+            .select()
+            .from(companyregister)
+            .where(eq(companyregister.companyId, companyId));
+
+        // Pagination only for employees
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const offset = (page - 1) * limit;
+
+        const [employees, total] = await Promise.all([
+            database
+                .select()
+                .from(addEmployee)
+                .where(eq(addEmployee.companyUserId, companyId))
+                .limit(limit)
+                .offset(offset),
+
+            database
+                .select({ count: sql<number>`count(*)`.as("count") })
+                .from(addEmployee)
+                .where(eq(addEmployee.companyUserId, companyId)),
+        ]);
+
+        return res.status(200).json({
+            company: company[0],
+            employees,
+            pagination: {
+                total: total[0].count,
+                page,
+                limit,
+                totalPages: Math.ceil(total[0].count / limit),
+            },
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+export const getEmployeeDetails = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const { employeeId } = req.params
+
+        const employee = await database
+            .select()
+            .from(addEmployee)
+            .where(eq(addEmployee.employeeId, employeeId))
+
+        const dependents = await database
+            .select()
+            .from(addDependents)
+            .where(eq(addDependents.employeeId, employeeId))
+
+        return res.status(200).json({
+            employee: employee[0],
+            dependents
+        })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+}
+
+export const deleteCompany = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id;
+        if (!adminId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        const { companyId } = req.params
+
+        const [employees] = await database
+            .select()
+            .from(addEmployee)
+            .where(eq(addEmployee.companyUserId, companyId))
+
+        await database
+            .delete(companyregister)
+            .where(eq(companyregister.companyId, companyId))
+
+        await database
+            .delete(addEmployee)
+            .where(eq(addEmployee.companyUserId, companyId))
+
+        await database
+            .select()
+            .from(addDependents)
+            .where(eq(addDependents.employeeId, employees.employeeId))
+
+            
+        return res.status(200).json({ message: "Company deleted successfully" });
 
     } catch (error) {
         console.log(error);

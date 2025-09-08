@@ -17,14 +17,19 @@ export const verifyTokenAdmin = (req: AuthenticatedRequestAdmin, res: Response, 
   if (authHeader && authHeader.startsWith("Bearer ")) {
     token = authHeader.split(" ")[1];
   }
-  if(!token || req.cookies?.token){
+  if (!token || req.cookies?.token) {
     token = req.cookies?.token
   }
 
-  if(!token){
+  console.log("Auth Header:", authHeader);   // 👈 check karo
+  console.log("Cookie Token:", req.cookies?.token);  // 👈 check karo
+  console.log("Final Token Used:", token);   // 👈 check karo
+
+
+  if (!token) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  
+
   const payload = verifyJwt<{ id: string; email: string; role: string }>(token);
   if (!payload || !payload.id) {
     return res.status(401).json({ error: "Invalid or expired token" });

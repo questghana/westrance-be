@@ -110,6 +110,7 @@ export const companyregister = pgTable("Companyregister", {
   confirmPassword: varchar("confirm_password", { length: 100 }).notNull(),
   profileImage: varchar("profile_image", { length: 300 }),
   termsAccepted: boolean("terms_accepted").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
   ...timeStamps,
 });
 

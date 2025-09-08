@@ -43,6 +43,13 @@
       "when": 1756902147954,
       "tag": "0005_majestic_lord_hawal",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1757337786083,
+      "tag": "0006_stiff_squadron_sinister",
+      "breakpoints": true
     }
   ]
 }
