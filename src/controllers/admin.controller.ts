@@ -321,8 +321,43 @@ export const deleteCompany = async (req: AuthenticatedRequestAdmin, res: Respons
             .from(addDependents)
             .where(eq(addDependents.employeeId, employees.employeeId))
 
-            
+
         return res.status(200).json({ message: "Company deleted successfully" });
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+}
+
+export const ActiveDeactiveCompany = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id
+        if (!adminId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        const { companyId } = req.params
+        const { status } = req.body
+
+        if (!status || !['Active', 'Deactive'].includes(status)) {
+            return res.status(400).json({ error: "Invalid status value" })
+        }
+        const isActive = status === "Active";
+
+        const updated = await database
+            .update(companyregister)
+            .set({ isActive })
+            .where(eq(companyregister.companyId, companyId))
+            .returning()
+
+        if (!updated.length) {
+            return res.status(404).json({ error: "Company not found" });
+        }
+
+        return res.status(200).json({
+            message: `Company ${isActive ? "Activated" : "Deactivated"} successfully`,
+            company: updated[0],
+        });
 
     } catch (error) {
         console.log(error);
