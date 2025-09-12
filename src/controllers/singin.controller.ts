@@ -223,9 +223,9 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 1000 * 60 * 60 * 24, // 1 day    
     };
-    console.log("Attempting to set cookie...");
+    // console.log("Attempting to set cookie...");
     res.cookie('token', token, cookieOptions);
-    console.log("Cookie setting attempted.");
+    // console.log("Cookie setting attempted.");
 
     // Role-specific data
     if (role === "CompanyAdmin") {
@@ -234,6 +234,10 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
         .from(companyregister)
         .where(eq(companyregister.administrativeEmail, email))
         .limit(1);
+
+      if (!company[0].isActive) {
+        return res.status(403).json({ error: "Your account has been DeActivated by Admin." });
+      }
 
       return res.status(200).json({
         message: "Company login success",
@@ -332,7 +336,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     await sendEmail({
       to: email,
       subject: "🔐 Reset Your Password - Westrance",
-      html:`
+      html: `
       <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;line-height:1.6;color:#333;">
         <!-- Header with Logo -->
         <div style="text-align:center;padding:20px 0;">
@@ -420,9 +424,9 @@ export const logout = async (_req: Request, res: Response) => {
 
 export const authme = async (req: Request, res: Response) => {
   try {
-    console.log("Authme endpoint hit.");
+    // console.log("Authme endpoint hit.");
     const token = req.cookies.token;
-    console.log("Received token from cookies:", token);
+    // console.log("Received token from cookies:", token);
     if (!token) {
       return res.status(401).json({ success: false, message: "Unauthorized - No token" });
     }
