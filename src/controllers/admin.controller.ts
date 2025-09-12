@@ -353,7 +353,6 @@ export const ActiveDeactiveCompany = async (req: AuthenticatedRequestAdmin, res:
         if (!updated.length) {
             return res.status(404).json({ error: "Company not found" });
         }
-
         return res.status(200).json({
             message: `Company ${isActive ? "Activated" : "Deactivated"} successfully`,
             company: updated[0],
