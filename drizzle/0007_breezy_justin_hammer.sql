@@ -1,0 +1,2 @@
+ALTER TABLE "add_invoice" ADD COLUMN "employer_company_id" varchar(128) NOT NULL;--> statement-breakpoint
+ALTER TABLE "add_invoice" ADD CONSTRAINT "add_invoice_employer_company_id_Companyregister_company_id_fk" FOREIGN KEY ("employer_company_id") REFERENCES "public"."Companyregister"("company_id") ON DELETE cascade ON UPDATE no action;

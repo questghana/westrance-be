@@ -1,4 +1,4 @@
-import { ActiveDeactiveCompany, adminlogincontroller, adminlogoutcontroller, deleteCompany, deleteHospitalPharmacy, getAllInvoices, getCompany, getCompanyDetails, getEmployeeDetails, getHospitalEmployeeDetails, getHospitalPharmacy, getHospitalPharmacyDetails, MostRecentInvoiceByAdmin, MostRecentRegisterCompanyAdmin } from "@/controllers/admin.controller";
+import { ActiveDeactiveCompany, addWestranceEmployeeController, adminlogincontroller, adminlogoutcontroller, deleteCompany, deleteHospitalPharmacy, getAllInvoices, getAllTicket, getCompany, getCompanyDetails, getEmployeeDetails, getHospitalEmployeeDetails, getHospitalPharmacy, getHospitalPharmacyDetails, getTicketById, getWestranceEmployees, MostRecentInvoiceByAdmin, MostRecentRegisterCompanyAdmin, RemoveTicketRequest, ReportsAnalytics, updateTicketStatus } from "@/controllers/admin.controller";
 import { verifyTokenAdmin } from "@/middlewares/admin.middleware";
 import { Router } from "express";
 
@@ -22,8 +22,16 @@ adminRoute.get("/hospital-pharmacy", verifyTokenAdmin, getHospitalPharmacy)
 adminRoute.get("/HospitalPharmacy-detail/:companyId", verifyTokenAdmin, getHospitalPharmacyDetails)
 adminRoute.get("/HospitalEmployee-detail/:employeeId", verifyTokenAdmin, getHospitalEmployeeDetails)
 adminRoute.delete("/deleteHospitalPharmacy/:companyId", verifyTokenAdmin, deleteHospitalPharmacy)
-
+// Employee Management routes
+adminRoute.post("/add-Employee", verifyTokenAdmin, addWestranceEmployeeController)
+adminRoute.get("/get-Employees", verifyTokenAdmin, getWestranceEmployees)
 
 adminRoute.get("/getAllInvoices", verifyTokenAdmin, getAllInvoices)
+adminRoute.get("/report-analytics", verifyTokenAdmin, ReportsAnalytics)
+// ticket routes
+adminRoute.get("/getAllTickets", verifyTokenAdmin, getAllTicket)
+adminRoute.get("/getTicket/:companyId", verifyTokenAdmin, getTicketById)
+adminRoute.patch("/updateTicketStatus/:ticketId", verifyTokenAdmin, updateTicketStatus)
+adminRoute.delete("/deleteTicket/:ticketId", verifyTokenAdmin, RemoveTicketRequest)
 
 export { adminRoute }

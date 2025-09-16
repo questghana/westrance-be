@@ -87,4 +87,3 @@ export const getTicketController = async (req: AuthenticatedRequest, res: Respon
     }
 }
 
-

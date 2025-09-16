@@ -608,6 +608,7 @@ export const getInvoiceByCompany = async (req: AuthenticatedRequest, res: Respon
             .select({
                 id: addEmployeeInvoice.id,
                 EmployeeId: addEmployeeInvoice.EmployeeId,
+                employerCompanyId: addEmployeeInvoice.employerCompanyId,
                 companyId: addEmployeeInvoice.companyId,
                 HospitalName: addEmployeeInvoice.HospitalName,
                 PatientName: addEmployeeInvoice.PatientName,
@@ -621,15 +622,15 @@ export const getInvoiceByCompany = async (req: AuthenticatedRequest, res: Respon
             .from(addEmployeeInvoice)
             .leftJoin(addEmployee, eq(addEmployeeInvoice.EmployeeId, addEmployee.employeeId))
             .leftJoin(addHospitalEmployee, eq(addEmployeeInvoice.EmployeeId, addHospitalEmployee.employeeId))
-            .where(eq(addEmployeeInvoice.companyId, user.userId))
+            .where(eq(addEmployeeInvoice.employerCompanyId, user.userId))
             .offset(offset)
             .limit(limit);
 
         // Total count
         const totalInvoices = await database
-            .select({ count: sql<number>`count(*)` })
+            .select({ count: sql<number>`count(*)`.as("count") })
             .from(addEmployeeInvoice)
-            .where(eq(addEmployeeInvoice.companyId, user.userId));
+            .where(eq(addEmployeeInvoice.employerCompanyId, user.userId));
 
         const totalCount = totalInvoices[0]?.count || 0;
         const totalPages = Math.ceil(totalCount / limit);

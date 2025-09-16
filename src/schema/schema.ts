@@ -156,6 +156,7 @@ export const createTicket = pgTable("CreateTicket", {
   administrativeEmail: varchar("administrative_email", { length: 100 }),
   subject: varchar("subject", { length: 100 }).notNull(),
   issue: varchar("issue", { length: 100 }).notNull(),
+  status: varchar("status", {enum: ["Pending", "Approved"],}).$defaultFn(() => "Pending"),
   ...timeStamps,
 })
 
@@ -207,6 +208,7 @@ export const HospitalRolesManagement = pgTable("hospital_roles_management", {
 export const addEmployeeInvoice = pgTable("add_invoice", {
   id: uuid().primaryKey(),
   EmployeeId: varchar("employee_id", { length: 14 }).notNull(),
+  employerCompanyId: varchar("employer_company_id", { length: 128 }).notNull().references(() => companyregister.companyId, { onDelete: "cascade" }),
   companyId: varchar("company_id", { length: 128 }).notNull().references(() => companyregister.companyId, { onDelete: "cascade" }),
   HospitalName: varchar("hospital_name", { length: 100 }).notNull(),
   PatientName: varchar("patient_name", { length: 100 }).notNull(),
@@ -224,6 +226,29 @@ export const admins = pgTable("admins", {
   password: varchar("password", { length: 255 }).notNull(),
   role: varchar("role", { length: 50 }),
 })
+
+export const WestranceEmployee = pgTable("Westrance_Employee", {
+  id: uuid().primaryKey(),
+  userId: varchar("user_id", { length: 128 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  companyUserId: varchar("company_user_id", { length: 128 }).notNull(),
+  employeeId: varchar("employee_id", { length: 20 }).notNull().unique(),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  middleName: varchar("middle_name", { length: 100 }),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  emailAddress: varchar("email_address", { length: 100 }).notNull().unique(),
+  registrationNumber: varchar("registration_number").notNull(),
+  startingDate: timestamp("starting_date").notNull(),
+  duration: varchar("duration", { length: 100 }).notNull(),
+  amountPackage: varchar("amount_package", { length: 100 }).notNull(),
+  benefits: varchar("benefits", { length: 100 }).notNull(),
+  createPassword: varchar("create_password", { length: 100 }).notNull(),
+  profileImage: varchar("profile_image", { length: 300 }),
+  dependents: varchar("add_dependents", { length: 3 }),
+  role: varchar("role", { length: 50 }),
+  isActive: boolean("is_active").default(true).notNull(),
+  ...timeStamps,
+});
+
 
 export const addEmployeeRelations = relations(addEmployee, ({ one }) => ({
   user: one(users, {

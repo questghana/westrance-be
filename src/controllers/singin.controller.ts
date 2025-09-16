@@ -1,6 +1,6 @@
 import { Request, Response, CookieOptions } from "express";
 import { database } from "@/configs/connection.config";
-import { addEmployee, users, companyregister, account, addHospitalEmployee } from "@/schema/schema";
+import { addEmployee, users, companyregister, account, addHospitalEmployee, WestranceEmployee } from "@/schema/schema";
 import { eq } from "drizzle-orm";
 // import { logger } from "@/utils/logger.util";
 import { User } from "@/types/api";
@@ -298,6 +298,34 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
 
 
     }
+
+    if (role === "Westrance Employee") {
+      const westranceEmployee = await database
+        .select()
+        .from(WestranceEmployee)
+        .where(eq(WestranceEmployee.emailAddress, email))
+        .limit(1)
+
+      if (westranceEmployee.length === 0) {
+        return res.status(401).json({ error: "Westrance Employee Not Found" })
+      }
+
+      if (!westranceEmployee[0].isActive) {
+        return res.status(403).json({ error: "Your account has been deactivated by your Hospital" })
+      }
+
+      return res.status(200).json({
+        message: "Westrance Employee Login Successfully",
+        data: {
+          user: { ...user[0], role },
+          employee: westranceEmployee[0]
+        }
+      })
+
+
+    }
+
+
     // Default case for fallback role
     return res.status(200).json({
       message: "User login success",

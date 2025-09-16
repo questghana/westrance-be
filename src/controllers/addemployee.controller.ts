@@ -170,7 +170,6 @@ export const addEmployeeController = async (req: AuthenticatedRequest, res: Resp
   }
 };
 
-
 export const updateEmployeeController = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
@@ -296,7 +295,6 @@ export const updateEmployeeController = async (req: AuthenticatedRequest, res: R
     return res.status(500).json({ error: "Something went wrong" });
   }
 };
-
 
 export const addDependentController = async (req: Request, res: Response) => {
   try {

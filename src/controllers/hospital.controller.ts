@@ -865,7 +865,7 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
             return res.status(404).json({ message: "Employee not found" });
         }
 
-        // 3. Balance calculation
+        // Balance calculation
         const currentBalance = parseFloat(employee.amountPackage);
         const invoiceAmount = parseFloat(Amount);
 
@@ -884,17 +884,25 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
         }
 
         const company = await database.query.companyregister.findFirst({
-            where: (fields, { eq }) => eq(fields.companyId, employee.companyUserId),
+            where: (fields, { eq }) => eq(fields.companyId, user.userId),
         });
 
         if (!company) {
             return res.status(404).json({ message: "Company/Hospital not found" });
         }
 
-        // 5. Insert invoice
+        // ✅ Check only Hospital/Pharmacy can create invoice
+        if (company.companyType !== "Hospital" && company.companyType !== "Pharmacy") {
+            return res.status(403).json({
+                message: "Only Hospital or Pharmacy can create invoices"
+            });
+        }
+
+        // Insert invoice
         await database.insert(addEmployeeInvoice).values({
             EmployeeId,
-            companyId: employee.companyUserId,
+            employerCompanyId: employee.companyUserId,
+            companyId: company.companyId, 
             HospitalName: company.companyName,
             PatientName,
             Amount,
@@ -904,7 +912,7 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
         });
 
         return res.status(200).json({
-            message: "Invoice added successfully",
+            message: `Invoice created successfully by ${company.companyName}`,
         });
     } catch (error: any) {
         console.error("error", error);

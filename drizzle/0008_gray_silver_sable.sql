@@ -1,0 +1,1 @@
+ALTER TABLE "CreateTicket" ADD COLUMN "status" "ticket_status" DEFAULT 'Pending' NOT NULL;
