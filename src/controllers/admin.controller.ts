@@ -1208,7 +1208,6 @@ export const updateAdminDetail = async (req: AuthenticatedRequestAdmin, res: Res
             return res.status(401).json({ error: "Unauthorized – missing adminId" });
         }
 
-        // 🔹 Admin detail fetch karo
         const existingAdmin = await database
             .select()
             .from(admins)
@@ -1221,7 +1220,6 @@ export const updateAdminDetail = async (req: AuthenticatedRequestAdmin, res: Res
         const prevImgUrl = existingAdmin[0].profileImage;
         let profileImg = prevImgUrl || null;
 
-        // 🔹 Agar nayi image bheji hai to upload karo
         if (profilePhoto && profilePhoto.startsWith('data:image')) {
             if (prevImgUrl) {
                 const parts = prevImgUrl.split('/');
@@ -1237,7 +1235,6 @@ export const updateAdminDetail = async (req: AuthenticatedRequestAdmin, res: Res
             console.log("Uploaded Admin Image URL:", profileImg);
         }
 
-        // 🔹 Agar password bheja gaya hai to hash karke update karo
         if (password) {
             const hashedPassword = await generateBetterAuthPasswordHash(password);
             await database
@@ -1246,7 +1243,6 @@ export const updateAdminDetail = async (req: AuthenticatedRequestAdmin, res: Res
                 .where(eq(admins.id, adminId));
         }
 
-        // 🔹 Admin record update
         const updatedAdminDetail = await database
             .update(admins)
             .set({
