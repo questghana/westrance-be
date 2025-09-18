@@ -175,31 +175,46 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
     // Determine role if missing
     let role = user[0].role;
     if (!role || role === 'User') {
+  const company = await database
+    .select()
+    .from(companyregister)
+    .where(eq(companyregister.administrativeEmail, email))
+    .limit(1);
 
-      const company = await database
-        .select()
-        .from(companyregister)
-        .where(eq(companyregister.administrativeEmail, email))
-        .limit(1);
+  const employee = await database
+    .select()
+    .from(addEmployee)
+    .where(eq(addEmployee.emailAddress, email))
+    .limit(1);
 
-      const employee = await database
-        .select()
-        .from(addEmployee)
-        .where(eq(addEmployee.emailAddress, email))
-        .limit(1);
+  const hospitalEmployee = await database
+    .select()
+    .from(addHospitalEmployee)
+    .where(eq(addHospitalEmployee.emailAddress, email))
+    .limit(1);
 
-      if (company.length > 0) {
-        role = "Company";
-      } else if (employee.length > 0) {
-        role = "Employee";
-      } else {
-        role = "User";
-      }
+  const westranceEmployee = await database
+    .select()
+    .from(WestranceEmployee)
+    .where(eq(WestranceEmployee.emailAddress, email))
+    .limit(1);
 
-      await database.update(users)
-        .set({ role })
-        .where(eq(users.id, userId));
-    }
+  if (company.length > 0) {
+    role = "CompanyAdmin";
+  } else if (hospitalEmployee.length > 0) {
+    role = "Hospital Employee";
+  } else if (westranceEmployee.length > 0) {
+    role = "Westrance Employee";
+  } else if (employee.length > 0) {
+    role = "Employee";
+  } else {
+    role = "User";
+  }
+
+  await database.update(users)
+    .set({ role })
+    .where(eq(users.id, userId));
+}
 
     // Password check (assumes Better-Auth style hash stored in `account`)
     const accountRecord = await database
@@ -223,9 +238,7 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 1000 * 60 * 60 * 24, // 1 day    
     };
-    // console.log("Attempting to set cookie...");
     res.cookie('token', token, cookieOptions);
-    // console.log("Cookie setting attempted.");
 
     // Role-specific data
     if (role === "CompanyAdmin") {
@@ -236,12 +249,13 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
         .limit(1);
 
       if (!company[0].isActive) {
-        return res.status(403).json({ error: "Your account has been DeActivated by Admin." });
+        return res.status(403).json({ error: "Your account has been DeActivated by Company" });
       }
 
       return res.status(200).json({
         message: "Company login success",
         data: {
+          token,
           user: { ...user[0], role },
           company: company[0],
         }
@@ -267,6 +281,7 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
       return res.status(200).json({
         message: "Employee login success",
         data: {
+          token,
           user: { ...user[0], role },
           employee: employee[0],
         }
@@ -291,6 +306,7 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
       return res.status(200).json({
         message: "Hospital Employee Login Successfully",
         data: {
+          token,
           user: { ...user[0], role },
           employee: HospitalEmployee[0]
         }
@@ -311,18 +327,17 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
       }
 
       if (!westranceEmployee[0].isActive) {
-        return res.status(403).json({ error: "Your account has been deactivated by your Hospital" })
+        return res.status(403).json({ error: "Your account has been deactivated by your Company" })
       }
 
       return res.status(200).json({
         message: "Westrance Employee Login Successfully",
         data: {
+          token,
           user: { ...user[0], role },
-          employee: westranceEmployee[0]
+          employee: westranceEmployee[0]  // <- yahan explicitly bhejo        
         }
-      })
-
-
+        })
     }
 
 
@@ -330,6 +345,7 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
     return res.status(200).json({
       message: "User login success",
       data: {
+        token,
         user: { ...user[0], role: role || "User" },
       }
     });
@@ -469,12 +485,23 @@ export const authme = async (req: Request, res: Response) => {
     }
 
     let company = null;
+    let employee = null; // Initialize employee as null
+
     if (user.role === "CompanyAdmin") {
       [company] = await database.select().from(companyregister).where(eq(companyregister.administrativeEmail, user.email));
       console.log("Company found for admin:", company);
+    } else if (user.role === "Employee") {
+      [employee] = await database.select().from(addEmployee).where(eq(addEmployee.userId, user.id));
+      console.log("Employee found for Employee role:", employee);
+    } else if (user.role === "Hospital Employee") {
+      [employee] = await database.select().from(addHospitalEmployee).where(eq(addHospitalEmployee.userId, user.id));
+      console.log("Hospital Employee found for Hospital Employee role:", employee);
+    } else if (user.role === "Westrance Employee") {
+      [employee] = await database.select().from(WestranceEmployee).where(eq(WestranceEmployee.userId, user.id));
+      console.log("Westrance Employee found for Westrance Employee role:", employee);
     }
 
-    return res.status(200).json({ success: true, data: { user, company } });
+    return res.status(200).json({ success: true, data: { user, company, employee } });
   } catch (error) {
     console.error("Auth me error:", error);
     return res.status(401).json({ success: false, message: "Unauthorized - Invalid token" });

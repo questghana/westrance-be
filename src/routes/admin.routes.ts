@@ -1,4 +1,4 @@
-import { ActiveDeactiveCompany, addWestranceEmployeeController, adminlogincontroller, adminlogoutcontroller, deleteCompany, deleteHospitalPharmacy, getAllInvoices, getAllTicket, getCompany, getCompanyDetails, getEmployeeDetails, getHospitalEmployeeDetails, getHospitalPharmacy, getHospitalPharmacyDetails, getTicketById, getWestranceEmployees, MostRecentInvoiceByAdmin, MostRecentRegisterCompanyAdmin, RemoveTicketRequest, ReportsAnalytics, updateTicketStatus } from "@/controllers/admin.controller";
+import { ActiveDeactiveCompany, ActiveDeactiveWestranceEmployee, addWestranceEmployeeController, addWestranceEmployeeRoleManagement, adminlogincontroller, adminlogoutcontroller, deleteCompany, deleteHospitalPharmacy, deleteWestranceEmployee, editWestranceEmployee, getAdminDetail, getAllInvoices, getAllTicket, getCompany, getCompanyDetails, getEmployeeDetails, getHospitalEmployeeDetails, getHospitalPharmacy, getHospitalPharmacyDetails, getTicketById, getWestranceEmployees, getWestranceEmployeesWithDependents, MostRecentInvoiceByAdmin, MostRecentRegisterCompanyAdmin, RemoveTicketRequest, ReportsAnalytics, updateAdminDetail, updateTicketStatus } from "@/controllers/admin.controller";
 import { verifyTokenAdmin } from "@/middlewares/admin.middleware";
 import { Router } from "express";
 
@@ -25,9 +25,16 @@ adminRoute.delete("/deleteHospitalPharmacy/:companyId", verifyTokenAdmin, delete
 // Employee Management routes
 adminRoute.post("/add-Employee", verifyTokenAdmin, addWestranceEmployeeController)
 adminRoute.get("/get-Employees", verifyTokenAdmin, getWestranceEmployees)
-
+adminRoute.get("/get-Employees-dependents/:id", verifyTokenAdmin, getWestranceEmployeesWithDependents)
+adminRoute.put("/edit-Employee", verifyTokenAdmin, editWestranceEmployee)
+adminRoute.delete("/delete-Employee/:id", verifyTokenAdmin, deleteWestranceEmployee)
+adminRoute.post("/ActiveDeactive-Employee/Status", verifyTokenAdmin, ActiveDeactiveWestranceEmployee)
 adminRoute.get("/getAllInvoices", verifyTokenAdmin, getAllInvoices)
 adminRoute.get("/report-analytics", verifyTokenAdmin, ReportsAnalytics)
+adminRoute.post("/add-EmployeeRoles", verifyTokenAdmin, addWestranceEmployeeRoleManagement)
+adminRoute.get("/get-adminDetail", verifyTokenAdmin, getAdminDetail)
+adminRoute.put("/update-adminDetail", verifyTokenAdmin, updateAdminDetail)
+
 // ticket routes
 adminRoute.get("/getAllTickets", verifyTokenAdmin, getAllTicket)
 adminRoute.get("/getTicket/:companyId", verifyTokenAdmin, getTicketById)

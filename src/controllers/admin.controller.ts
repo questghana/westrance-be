@@ -1,5 +1,5 @@
 import { database } from "@/configs/connection.config";
-import { account, addDependents, addEmployee, addEmployeeInvoice, addHospitalDependents, addHospitalEmployee, admins, companyregister, createTicket, users, WestranceEmployee } from "@/schema/schema";
+import { account, addDependents, addEmployee, addEmployeeInvoice, addHospitalDependents, addHospitalEmployee, admins, companyregister, createTicket, users, WestranceEmployee, WestranceRolesManagement } from "@/schema/schema";
 import { eq, desc, and, ne, or, sql } from "drizzle-orm";
 import { CookieOptions, Request, Response } from "express";
 import bcrypt from "bcryptjs"
@@ -609,7 +609,7 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             if (existingUser[0].role !== "Westrance Employee") {
                 await database
                     .update(users)
-                    .set({ role: "Westrance Employee" })
+                    .set({ role: "Westrance Employee"})
                     .where(eq(users.id, userId));
             }
         } else {
@@ -731,8 +731,182 @@ export const getWestranceEmployees = async (req: AuthenticatedRequestAdmin, res:
     }
 };
 
+export const getWestranceEmployeesWithDependents = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const { id } = req.params
+        if (!id) return res.status(404).json({ error: "Missing EmployeeId" })
+        const employee = await database
+            .select()
+            .from(WestranceEmployee)
+            .where(eq(WestranceEmployee.employeeId, id))
 
+        // const dependents = await database
+        //     .select()
+        //     .from(addHospitalDependents)
+        //     .where(eq(addHospitalDependents.employeeId, id))
 
+        if (!employee.length) {
+            return res.status(404).json({ error: "Employee Not Found" })
+        }
+
+        return res.status(200).json({
+            employee: employee[0],
+            // dependents
+        })
+
+    } catch (error) {
+        console.log("Error fetching employee", error);
+        return res.status(500).json({ error: "Server Error" });
+    }
+}
+
+export const editWestranceEmployee = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const {
+            employeeId,
+            firstName,
+            middleName,
+            lastName,
+            email,
+            companyContact,
+            startingDate,
+            duration,
+            amount,
+            benefits,
+            dependents,
+            password,
+            confirmPassword,
+            profilePhoto
+        } = req.body
+
+        // console.log(req.body)
+        if (!employeeId) {
+            return res.status(400).json({ error: "Employee ID is required" });
+        }
+
+        if (password !== confirmPassword) {
+            return res.status(400).json({ error: "Passwords do not match" })
+        }
+
+        const existingEmployee = await database
+            .select()
+            .from(WestranceEmployee)
+            .where(eq(WestranceEmployee.employeeId, employeeId));
+
+        const prevImgUrl = existingEmployee[0].profileImage
+        let profileImg = prevImgUrl;
+
+        if (profilePhoto) {
+            const isBase64 = profilePhoto.startsWith("data:image");
+
+            if (isBase64) {
+                // Remove old image if it exists
+                if (prevImgUrl) {
+                    const parts = prevImgUrl.split('/');
+                    const publicIdWithExtension = parts[parts.length - 1];
+                    const publicId = `westrance_employee_profiles/${publicIdWithExtension.split('.')[0]}`;
+                    await cloudinary.uploader.destroy(publicId);
+                }
+
+                // Upload new image
+                const uploadResponse = await cloudinary.uploader.upload(profilePhoto, {
+                    folder: 'Hospital_Employees_Profiles',
+                    transformation: [{ width: 300, height: 300, crop: "fill" }],
+                });
+
+                profileImg = uploadResponse.secure_url;
+            } else {
+                // Image is already a Cloudinary URL, use as-is
+                profileImg = profilePhoto;
+            }
+        }
+
+        const updateEmployee = await database.update(WestranceEmployee).set({
+            firstName,
+            middleName,
+            lastName,
+            emailAddress: email,
+            registrationNumber: companyContact,
+            startingDate: new Date(startingDate),
+            duration,
+            amountPackage: amount,
+            benefits,
+            dependents,
+            createPassword: password,
+            profileImage: profileImg
+        }).where(eq(WestranceEmployee.employeeId, employeeId)).returning()
+
+        return res.status(200).json({
+            message: "Employee updated Successfully",
+            updateEmployee
+        })
+
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({ error: "Server Error" });
+    }
+}
+
+export const deleteWestranceEmployee = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ error: "Missing EmployeeId" });
+        }
+
+        const employee = await database
+            .delete(WestranceEmployee)
+            .where(eq(WestranceEmployee.employeeId, id))
+            .returning()
+
+        if (employee.length > 0) {
+            const email = employee[0].emailAddress
+
+            await database.delete(account).where(eq(account.accountId, email))
+
+            await database.delete(users).where(eq(users.email, email))
+        }
+
+        if (employee.length > 0 && employee[0].profileImage) {
+            const publicIdWithExtension = employee[0].profileImage.split('/').pop();
+            const publicId = `westrance_employee_profiles/${publicIdWithExtension?.split('.')[0]}`;
+            await cloudinary.uploader.destroy(publicId);
+        }
+
+        return res.status(200).json({
+            message: "Employee deleted Successfully",
+        })
+
+    } catch (error) {
+        console.log("Error deleting employee", error);
+        return res.status(500).json({ error: "Server Error" });
+    }
+}
+
+export const ActiveDeactiveWestranceEmployee = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const { employeeId, status } = req.body
+
+        if (!employeeId || !["Active", "Deactive"].includes(status)) {
+            return res.status(400).json({ error: "Missing or Invalid EmployeeId or Status" });
+        }
+
+        const isActive = status === "Active"
+
+        await database
+            .update(WestranceEmployee)
+            .set({ isActive })
+            .where(eq(WestranceEmployee.employeeId, employeeId))
+
+        return res.status(200).json({
+            message: `Employee ${isActive ? "Activated" : "Deactivated"} Successfully`,
+            status: isActive ? "Active" : "Deactive"
+        })
+    } catch (error) {
+        console.log("Active/Deactive employee error:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+}
 
 export const getAllInvoices = async (req: AuthenticatedRequestAdmin, res: Response) => {
     try {
@@ -949,3 +1123,149 @@ export const RemoveTicketRequest = async (req: AuthenticatedRequestAdmin, res: R
         return res.status(500).json({ error: "Something went wrong" });
     }
 }
+
+export const addWestranceEmployeeRoleManagement = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const {
+            EmployeeName,
+            RoleName,
+            RoleDescription,
+            Password,
+            ConfirmPassword
+        } = req.body;
+
+        if (!EmployeeName || !RoleName || !Password || !ConfirmPassword) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        if (Password !== ConfirmPassword) {
+            return res.status(400).json({ error: "Passwords do not match" });
+        }
+
+        const [firstName, lastName] = EmployeeName.trim().split(" ");
+
+        if (!firstName || !lastName) {
+            return res.status(400).json({ error: "Employee name must include both first and last name" });
+        }
+
+        const [employee] = await database
+            .select()
+            .from(WestranceEmployee)
+            .where(
+                and(
+                    eq(WestranceEmployee.firstName, firstName),
+                    eq(WestranceEmployee.lastName, lastName)
+                )
+            );
+
+        if (!employee) {
+            return res.status(404).json({ error: "Employee not found" });
+        }
+
+
+        const hashedPassword = await generateBetterAuthPasswordHash(Password);
+        const result = await database.insert(WestranceRolesManagement).values({
+            employeeId: employee.employeeId,
+            EmployeeName,
+            RoleName,
+            RoleDescription,
+            Password: hashedPassword,
+            ConfirmPassword: hashedPassword,
+        });
+
+        return res.status(200).json({
+            data: result,
+            message: "Role added successfully"
+        });
+    } catch (error: any) {
+        console.error("error", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+}
+
+export const getAdminDetail = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id
+        if (!adminId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        const adminDetail = await database.select().from(admins)
+        return res.status(200).json({
+            adminDetail
+        });
+    } catch (error) {
+        console.error("Failed to fetch company detail", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+}
+
+export const updateAdminDetail = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id;
+        const { email, password, profilePhoto } = req.body;
+
+        if (!adminId) {
+            return res.status(401).json({ error: "Unauthorized – missing adminId" });
+        }
+
+        // 🔹 Admin detail fetch karo
+        const existingAdmin = await database
+            .select()
+            .from(admins)
+            .where(eq(admins.id, adminId));
+
+        if (!existingAdmin.length) {
+            return res.status(404).json({ error: 'Admin not found' });
+        }
+
+        const prevImgUrl = existingAdmin[0].profileImage;
+        let profileImg = prevImgUrl || null;
+
+        // 🔹 Agar nayi image bheji hai to upload karo
+        if (profilePhoto && profilePhoto.startsWith('data:image')) {
+            if (prevImgUrl) {
+                const parts = prevImgUrl.split('/');
+                const publicIdWithExtension = parts[parts.length - 1];
+                const publicId = `admin_profiles/${publicIdWithExtension.split('.')[0]}`;
+                await cloudinary.uploader.destroy(publicId);
+            }
+
+            const uploadResponse = await cloudinary.uploader.upload(profilePhoto, {
+                folder: 'admin_profiles',
+            });
+            profileImg = uploadResponse.secure_url;
+            console.log("Uploaded Admin Image URL:", profileImg);
+        }
+
+        // 🔹 Agar password bheja gaya hai to hash karke update karo
+        if (password) {
+            const hashedPassword = await generateBetterAuthPasswordHash(password);
+            await database
+                .update(admins)
+                .set({ password: hashedPassword })
+                .where(eq(admins.id, adminId));
+        }
+
+        // 🔹 Admin record update
+        const updatedAdminDetail = await database
+            .update(admins)
+            .set({
+                email,
+                profileImage: profileImg,
+            })
+            .where(eq(admins.id, adminId))
+            .returning();
+
+        if (updatedAdminDetail.length === 0) {
+            return res.status(404).json({ error: "Admin not found or no changes made" });
+        }
+
+        return res.status(200).json({
+            message: "Admin detail updated successfully",
+            updatedAdminDetail: updatedAdminDetail[0],
+        });
+    } catch (error) {
+        console.error("Error updating admin detail:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};

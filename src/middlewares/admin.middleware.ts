@@ -21,11 +21,6 @@ export const verifyTokenAdmin = (req: AuthenticatedRequestAdmin, res: Response, 
     token = req.cookies?.token
   }
 
-  console.log("Auth Header:", authHeader);   // 👈 check karo
-  console.log("Cookie Token:", req.cookies?.token);  // 👈 check karo
-  console.log("Final Token Used:", token);   // 👈 check karo
-
-
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" });
   }

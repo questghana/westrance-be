@@ -156,7 +156,7 @@ export const createTicket = pgTable("CreateTicket", {
   administrativeEmail: varchar("administrative_email", { length: 100 }),
   subject: varchar("subject", { length: 100 }).notNull(),
   issue: varchar("issue", { length: 100 }).notNull(),
-  status: varchar("status", {enum: ["Pending", "Approved"],}).$defaultFn(() => "Pending"),
+  status: varchar("status", { enum: ["Pending", "Approved"], }).$defaultFn(() => "Pending"),
   ...timeStamps,
 })
 
@@ -225,6 +225,7 @@ export const admins = pgTable("admins", {
   email: varchar("admin_email", { length: 255 }).notNull().unique(),
   password: varchar("password", { length: 255 }).notNull(),
   role: varchar("role", { length: 50 }),
+  profileImage: varchar("profile_image", { length: 300 }),
 })
 
 export const WestranceEmployee = pgTable("Westrance_Employee", {
@@ -248,6 +249,16 @@ export const WestranceEmployee = pgTable("Westrance_Employee", {
   isActive: boolean("is_active").default(true).notNull(),
   ...timeStamps,
 });
+
+export const WestranceRolesManagement = pgTable("westrance_roles_management", {
+  id: uuid().primaryKey(),
+  employeeId: varchar("employee_id", { length: 20 }).notNull().references(() => WestranceEmployee.employeeId, { onDelete: "cascade" }),
+  EmployeeName: varchar("employee_name", { length: 100 }).notNull(),
+  RoleName: varchar("role_name", { length: 100 }).notNull(),
+  RoleDescription: varchar("role_description", { length: 100 }).notNull(),
+  Password: varchar("password", { length: 100 }).notNull(),
+  ConfirmPassword: varchar("confirm_password", { length: 100 }).notNull(),
+})
 
 
 export const addEmployeeRelations = relations(addEmployee, ({ one }) => ({
