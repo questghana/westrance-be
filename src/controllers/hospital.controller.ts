@@ -1,55 +1,72 @@
 import cloudinary from "@/configs/cloudniary.config";
 import { database } from "@/configs/connection.config";
 import { AuthenticatedRequest } from "@/middlewares/auth.middleware";
-import { HospitalRolesManagement, account, addDependents, addEmployee, addHospitalDependents, addHospitalEmployee, users, addEmployeeInvoice } from "@/schema/schema";
+import { HospitalRolesManagement, account, addDependents, addEmployee, addHospitalDependents, addHospitalEmployee, users, addEmployeeInvoice, WestranceEmployee, addWestranceDependents } from "@/schema/schema";
 import generateEmployeeId from "@/utils/generate.employeeid";
 import { generateBetterAuthPasswordHash } from "@/utils/password-hash.util";
 import { createId } from "@paralleldrive/cuid2";
-import { and, or, eq, ilike, sql } from "drizzle-orm";
+import { and, or, eq, ilike, sql, inArray } from "drizzle-orm";
 import { Request, Response } from "express";
-// import PDFDocument from "pdfkit";
 
 
 
 
 export const SearchPatientById = async (req: Request, res: Response) => {
     try {
-        // search query
         const { patientId } = req.query;
-        if (!patientId || typeof patientId !== 'string') {
+
+        if (!patientId || typeof patientId !== "string") {
             return res.status(400).json({ message: "Patient ID is required" });
         }
 
-        // validate query
-        if (!patientId) {
-            return res.status(400).json({ message: "Patient ID is required" });
-        }
-        // find patient by ID
-        const [employee] = await database.select().from(addEmployee).where(eq(addEmployee.employeeId, patientId));
+        const [employee] = await database
+            .select()
+            .from(addEmployee)
+            .where(eq(addEmployee.employeeId, patientId));
 
-        const [hospitalemployee] = await database.select().from(addHospitalEmployee).where(eq(addHospitalEmployee.employeeId, patientId));
+        const [hospitalemployee] = await database
+            .select()
+            .from(addHospitalEmployee)
+            .where(eq(addHospitalEmployee.employeeId, patientId));
 
-        // console.log(employee, hospitalemployee)
+        const [westranceEmployee] = await database
+            .select()
+            .from(WestranceEmployee)
+            .where(eq(WestranceEmployee.employeeId, patientId));
 
-        if (!employee && !hospitalemployee) {
+        let foundEmployee = employee || hospitalemployee || westranceEmployee;
+
+        if (!foundEmployee) {
             return res.status(404).json({ message: "Patient not found" });
         }
-        const dependents = await database.select().from(addDependents).where(eq(addDependents.employeeId, patientId));
-        const hospitalemployeedependents = await database.select().from(addHospitalDependents).where(eq(addHospitalDependents.employeeId, patientId));
-        // return patient and dependents data
-        return res.status(200).json({
-            employee,
-            hospitalemployee,
-            dependents,
-            hospitalemployeedependents
-        });
 
+        let dependents: any[] = [];
+        if (employee) {
+            dependents = await database
+                .select()
+                .from(addDependents)
+                .where(eq(addDependents.employeeId, patientId));
+        } else if (hospitalemployee) {
+            dependents = await database
+                .select()
+                .from(addHospitalDependents)
+                .where(eq(addHospitalDependents.employeeId, patientId));
+        } else if (westranceEmployee) {
+            dependents = await database
+                .select()
+                .from(addWestranceDependents)
+                .where(eq(addWestranceDependents.employeeId, patientId));
+        }
+
+        return res.status(200).json({
+            employee: foundEmployee,
+            dependents,
+        });
     } catch (error) {
         console.error("Error searching patient by ID:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
-}
-
+};
 // export const addHospitalEmployeeController = async (req: AuthenticatedRequest, res: Response) => {
 //     try {
 //         const {
@@ -635,11 +652,11 @@ export const addHospitalDependentController = async (req: Request, res: Response
             LastName,
             EmailAddress,
             Relation,
-            CompanyRegisterNumber,
+            PhoneNumber,
             profilePhoto,
             employeeId
         } = req.body;
-
+        const dependentId = generateEmployeeId();
         if (!FirstName || !LastName || !Relation || !employeeId) {
             return res.status(400).json({ error: "Missing required fields" });
         }
@@ -691,9 +708,10 @@ export const addHospitalDependentController = async (req: Request, res: Response
             lastName: LastName,
             emailAddress: EmailAddress || null,
             relation: Relation,
-            registrationNumber: CompanyRegisterNumber || null,
+            PhoneNumber: PhoneNumber || null,
             profileImage: uploadedImageUrl || null,
-            employeeId
+            employeeId,
+            dependentId
         });
 
         return res.status(200).json({
@@ -783,8 +801,8 @@ export const getPatientByNameAndId = async (req: AuthenticatedRequest, res: Resp
             return res.status(400).json({ message: "Patient name or id is required" });
         }
 
-        // Build dynamic conditions
-        const empConditions = [];
+        // ---------- Employees ----------
+        const empConditions: any[] = [];
         if (employeeId) {
             empConditions.push(eq(addEmployee.employeeId, employeeId as string));
         }
@@ -809,8 +827,21 @@ export const getPatientByNameAndId = async (req: AuthenticatedRequest, res: Resp
             .from(addEmployee)
             .where(empConditions.length ? and(...empConditions) : undefined);
 
-        // Same for hospital employees
-        const hospConditions = [];
+        let employeeDependents: any[] = [];
+        if (employee?.length) {
+            employeeDependents = await database
+                .select({
+                    id: addDependents.id,
+                    employeeId: addDependents.employeeId,
+                    firstName: addDependents.firstName,
+                    relation: addDependents.relation,
+                })
+                .from(addDependents)
+                .where(inArray(addDependents.employeeId, employee.map(e => e.employeeId)));
+        }
+
+        // ---------- Hospital Employees ----------
+        const hospConditions: any[] = [];
         if (employeeId) {
             hospConditions.push(eq(addHospitalEmployee.employeeId, employeeId as string));
         }
@@ -835,11 +866,94 @@ export const getPatientByNameAndId = async (req: AuthenticatedRequest, res: Resp
             .from(addHospitalEmployee)
             .where(hospConditions.length ? and(...hospConditions) : undefined);
 
-        if ((!employee?.length) && (!hospitalemployee?.length)) {
+        let hospitalDependents: any[] = [];
+        if (hospitalemployee?.length) {
+            hospitalDependents = await database
+                .select({
+                    id: addHospitalDependents.id,
+                    employeeId: addHospitalDependents.employeeId,
+                    firstName: addHospitalDependents.firstName,
+                    relation: addHospitalDependents.relation,
+                })
+                .from(addHospitalDependents)
+                .where(inArray(addHospitalDependents.employeeId, hospitalemployee.map(e => e.employeeId)));
+        }
+
+        // ---------- Westrance Employees ----------
+        const westranceConditions: any[] = [];
+        if (employeeId) {
+            westranceConditions.push(eq(WestranceEmployee.employeeId, employeeId as string));
+        }
+        if (SelectPatient) {
+            const words = (SelectPatient as string).trim().split(/\s+/);
+            words.forEach((word) => {
+                westranceConditions.push(
+                    or(
+                        ilike(WestranceEmployee.firstName, `%${word}%`),
+                        ilike(WestranceEmployee.lastName, `%${word}%`)
+                    )
+                );
+            });
+        }
+
+        const westranceEmployee = await database
+            .select({
+                employeeId: WestranceEmployee.employeeId,
+                firstName: WestranceEmployee.firstName,
+                lastName: WestranceEmployee.lastName,
+            })
+            .from(WestranceEmployee)
+            .where(westranceConditions.length ? and(...westranceConditions) : undefined);
+
+        let westranceDependents: any[] = [];
+        if (westranceEmployee?.length) {
+            westranceDependents = await database
+                .select({
+                    id: addWestranceDependents.id,
+                    employeeId: addWestranceDependents.employeeId,
+                    firstName: addWestranceDependents.firstName,
+                    relation: addWestranceDependents.relation,
+                })
+                .from(addWestranceDependents)
+                .where(inArray(addWestranceDependents.employeeId, westranceEmployee.map(e => e.employeeId)));
+        }
+
+        // ---------- Final Response ----------
+        if ((!employee?.length) && (!hospitalemployee?.length) && (!westranceEmployee?.length)) {
             return res.status(404).json({ message: "Patient not found" });
         }
 
-        return res.status(200).json({ employee, hospitalemployee });
+        const allPatients: any[] = [];
+
+        // Combine employees and their dependents
+        employee.forEach((emp) => {
+            allPatients.push({
+                ...emp,
+                type: "employee",
+                dependents: employeeDependents.filter((dep) => dep.employeeId === emp.employeeId),
+            });
+        });
+
+        hospitalemployee.forEach((emp) => {
+            allPatients.push({
+                ...emp,
+                type: "hospitalemployee",
+                dependents: hospitalDependents.filter((dep) => dep.employeeId === emp.employeeId),
+            });
+        });
+
+        westranceEmployee.forEach((emp) => {
+            allPatients.push({
+                ...emp,
+                type: "westranceEmployee",
+                dependents: westranceDependents.filter((dep) => dep.employeeId === emp.employeeId),
+            });
+        });
+
+        return res.status(200).json({
+            patients: allPatients,
+        });
+
     } catch (error) {
         console.error("error", error);
         return res.status(500).json({ error: "Something went wrong" });
@@ -853,24 +967,80 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
 
         const { EmployeeId, PatientName, Amount, BenefitUsed, SubmittedDate } = req.body;
 
-        const employee =
+        let entity: any =
             (await database.query.addEmployee.findFirst({
                 where: (fields, { eq }) => eq(fields.employeeId, EmployeeId),
             })) ??
             (await database.query.addHospitalEmployee.findFirst({
                 where: (fields, { eq }) => eq(fields.employeeId, EmployeeId),
+            })) ??
+            (await database.query.WestranceEmployee.findFirst({
+                where: (fields, { eq }) => eq(fields.employeeId, EmployeeId),
             }));
 
-        if (!employee) {
-            return res.status(404).json({ message: "Employee not found" });
+        let entityType: "employee" | "hospitalemployee" | "westranceemployee" | "dependent" | null = null;
+        let parentEmployee: any = null;
+
+        if (entity) {
+            if (entity.userId) {
+                if ('createPassword' in entity) {
+                    entityType = entity.role === "Hospital Employee" ? "hospitalemployee" : (entity.role === "Westrance Employee" ? "westranceemployee" : "employee");
+                    parentEmployee = entity;
+                } else {
+                }
+            }
+        } else {
+            const dependent =
+                (await database.query.addDependents.findFirst({
+                    where: (fields, { eq }) => eq(fields.dependentId, EmployeeId),
+                })) ??
+                (await database.query.addHospitalDependents.findFirst({
+                    where: (fields, { eq }) => eq(fields.dependentId, EmployeeId),
+                })) ??
+                (await database.query.addWestranceDependents.findFirst({
+                    where: (fields, { eq }) => eq(fields.dependentId, EmployeeId),
+                }));
+
+            if (dependent) {
+                entityType = "dependent";
+                const employeeIdOfDependent = dependent.employeeId;
+
+                parentEmployee =
+                    (await database.query.addEmployee.findFirst({
+                        where: (fields, { eq }) => eq(fields.employeeId, employeeIdOfDependent),
+                    })) ??
+                    (await database.query.addHospitalEmployee.findFirst({
+                        where: (fields, { eq }) => eq(fields.employeeId, employeeIdOfDependent),
+                    })) ??
+                    (await database.query.WestranceEmployee.findFirst({
+                        where: (fields, { eq }) => eq(fields.employeeId, employeeIdOfDependent),
+                    }));
+
+                if (!parentEmployee) {
+                    return res.status(404).json({ message: "Parent employee for dependent not found" });
+                }
+                entity = dependent;
+            }
+        }
+
+        if (!entity) {
+            return res.status(404).json({ message: "Employee or Dependent not found" });
+        }
+        let targetEntity = parentEmployee || entity;
+
+        let finalEmployerCompanyId: string;
+        if (entityType === "westranceemployee" || (entityType === "dependent" && parentEmployee && (parentEmployee as any).role === "Westrance Employee")) {
+            finalEmployerCompanyId = "COMP-001";
+        } else {
+            finalEmployerCompanyId = targetEntity.companyUserId;
         }
 
         // Balance calculation
-        const currentBalance = parseFloat(employee.amountPackage);
+        const currentBalance = parseFloat(targetEntity.amountPackage);
         const invoiceAmount = parseFloat(Amount);
 
         if (currentBalance <= 0) {
-            return res.status(400).json({ message: "Employee has no remaining balance" });
+            return res.status(400).json({ message: "Employee/Dependent has no remaining balance" });
         }
 
         if (invoiceAmount > currentBalance) {
@@ -879,8 +1049,12 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
 
         const newBalance = currentBalance - invoiceAmount;
 
-        if (!employee.companyUserId) {
-            return res.status(400).json({ message: "Employee is not linked to any company" });
+        const employerCompany = await database.query.companyregister.findFirst({
+            where: (fields, { eq }) => eq(fields.companyId, finalEmployerCompanyId),
+        });
+
+        if (!employerCompany) {
+            return res.status(404).json({ message: "Employer company for this employee/dependent not found" });
         }
 
         const company = await database.query.companyregister.findFirst({
@@ -891,18 +1065,45 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
             return res.status(404).json({ message: "Company/Hospital not found" });
         }
 
-        // ✅ Check only Hospital/Pharmacy can create invoice
         if (company.companyType !== "Hospital" && company.companyType !== "Pharmacy") {
             return res.status(403).json({
                 message: "Only Hospital or Pharmacy can create invoices"
             });
         }
 
+        if (entityType === "employee") {
+            await database.update(addEmployee).set({ amountPackage: newBalance.toString() }).where(eq(addEmployee.employeeId, targetEntity.employeeId));
+        } else if (entityType === "hospitalemployee") {
+            await database.update(addHospitalEmployee).set({ amountPackage: newBalance.toString() }).where(eq(addHospitalEmployee.employeeId, targetEntity.employeeId));
+        } else if (entityType === "westranceemployee") {
+            await database.update(WestranceEmployee).set({ amountPackage: newBalance.toString() }).where(eq(WestranceEmployee.employeeId, targetEntity.employeeId));
+        } else if (entityType === "dependent") {
+            if ('employeeId' in targetEntity) {
+                const originalEmployee = await database.query.addEmployee.findFirst({
+                    where: (fields, { eq }) => eq(fields.employeeId, targetEntity.employeeId),
+                });
+                const originalHospitalEmployee = await database.query.addHospitalEmployee.findFirst({
+                    where: (fields, { eq }) => eq(fields.employeeId, targetEntity.employeeId),
+                });
+                const originalWestranceEmployee = await database.query.WestranceEmployee.findFirst({
+                    where: (fields, { eq }) => eq(fields.employeeId, targetEntity.employeeId),
+                });
+
+                if (originalEmployee) {
+                    await database.update(addEmployee).set({ amountPackage: newBalance.toString() }).where(eq(addEmployee.employeeId, targetEntity.employeeId));
+                } else if (originalHospitalEmployee) {
+                    await database.update(addHospitalEmployee).set({ amountPackage: newBalance.toString() }).where(eq(addHospitalEmployee.employeeId, targetEntity.employeeId));
+                } else if (originalWestranceEmployee) {
+                    await database.update(WestranceEmployee).set({ amountPackage: newBalance.toString() }).where(eq(WestranceEmployee.employeeId, targetEntity.employeeId));
+                }
+            }
+        }
+
         // Insert invoice
         await database.insert(addEmployeeInvoice).values({
-            EmployeeId,
-            employerCompanyId: employee.companyUserId,
-            companyId: company.companyId, 
+            EmployeeId: EmployeeId,
+            employerCompanyId: finalEmployerCompanyId,
+            companyId: company.companyId,
             HospitalName: company.companyName,
             PatientName,
             Amount,
@@ -1004,7 +1205,6 @@ export const downloadInvoice = async (req: AuthenticatedRequest, res: Response) 
         res.status(500).json({ error: "Something went wrong while generating invoice" });
     }
 }
-
 
 
 

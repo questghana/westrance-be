@@ -10,7 +10,7 @@ const seedAdmin = async () => {
 
         const existing = await database.select().from(admins).where(eq(admins.email, email));
         if (existing.length > 0) {
-            console.log("⚠️ Admin already exists");
+            console.log("Admin already exists");
             process.exit(0);
         }
 

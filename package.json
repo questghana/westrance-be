@@ -14,7 +14,8 @@
     "dbintrospect": "drizzle-kit introspect",
     "swagger": "ts-node ./src/configs/swagger.config.ts",
     "cleanup": "ts-node -r tsconfig-paths/register src/utils/cleanup-db.ts",
-    "seed:admin": "ts-node -r tsconfig-paths/register src/scripts/seedAdmin.ts"
+    "seed:admin": "ts-node -r tsconfig-paths/register src/scripts/seedAdmin.ts",
+    "seed:company": "ts-node -r tsconfig-paths/register src/scripts/seedCompany.ts"
   },
   "license": "ISC",
   "devDependencies": {

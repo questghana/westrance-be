@@ -1,0 +1,2 @@
+ALTER TABLE "Add_Westrance_Dependents" ADD COLUMN "dependent_id" varchar(20) NOT NULL;--> statement-breakpoint
+ALTER TABLE "Add_Westrance_Dependents" ADD CONSTRAINT "Add_Westrance_Dependents_dependent_id_unique" UNIQUE("dependent_id");

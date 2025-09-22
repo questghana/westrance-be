@@ -1,6 +1,6 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { database } from "@/configs/connection.config";
-import { addEmployee, users, account, addDependents } from "@/schema/schema";
+import { addEmployee, users, account, addDependents, WestranceEmployee, addWestranceDependents } from "@/schema/schema";
 import generateEmployeeId from "@/utils/generate.employeeid";
 import { eq } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
@@ -240,7 +240,7 @@ export const updateEmployeeController = async (req: AuthenticatedRequest, res: R
         CurrentPassword,
         accountRecord[0].password!
       );
-      
+
       if (!isPasswordValid) {
         return res.status(400).json({ error: "Current password is incorrect" });
       }
@@ -296,7 +296,7 @@ export const updateEmployeeController = async (req: AuthenticatedRequest, res: R
   }
 };
 
-export const addDependentController = async (req: Request, res: Response) => {
+export const addDependentController = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const {
       FirstName,
@@ -304,11 +304,11 @@ export const addDependentController = async (req: Request, res: Response) => {
       LastName,
       EmailAddress,
       Relation,
-      CompanyRegisterNumber,
+      PhoneNumber,
       profilePhoto,
       employeeId
     } = req.body;
-
+    const dependentId = generateEmployeeId();
     if (!FirstName || !LastName || !Relation || !employeeId) {
       return res.status(400).json({ error: "Missing required fields" });
     }
@@ -367,9 +367,10 @@ export const addDependentController = async (req: Request, res: Response) => {
       lastName: LastName,
       emailAddress: EmailAddress || null,
       relation: Relation,
-      registrationNumber: CompanyRegisterNumber || null,
+      PhoneNumber: PhoneNumber || null,
       profileImage: uploadedImageUrl || null,
-      employeeId
+      employeeId,
+      dependentId
     });
 
     return res.status(200).json({
@@ -382,6 +383,85 @@ export const addDependentController = async (req: Request, res: Response) => {
   }
 };
 
+export const addWestranceDependentController = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const {
+      FirstName,
+      MiddleName,
+      LastName,
+      EmailAddress,
+      Relation,
+      PhoneNumber,
+      profilePhoto,
+      employeeId
+    } = req.body;
+    const dependentId = generateEmployeeId();
+    if (!FirstName || !LastName || !Relation || !employeeId) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const [westranceEmployee] = await database
+      .select()
+      .from(WestranceEmployee)
+      .where(eq(WestranceEmployee.employeeId, employeeId));
+
+
+    if (!westranceEmployee) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+
+    const allowedDependents = westranceEmployee ? Number(westranceEmployee.dependents ?? 0) : 0;
+
+    // ✅ Step 2: Get current dependents of this employee
+    const existingDependents = await database
+      .select()
+      .from(addWestranceDependents)
+      .where(eq(addWestranceDependents.employeeId, employeeId));
+
+    const currentDependentCount = existingDependents.length;
+
+    // ✅ Step 3: Validation
+    if (allowedDependents === 0) {
+      return res.status(400).json({ error: "No dependents allowed for this employee." });
+    }
+
+    if (currentDependentCount >= allowedDependents) {
+      return res.status(400).json({ error: `Only ${allowedDependents} dependents are allowed.` });
+    }
+
+
+    let uploadedImageUrl: string | null = null;
+    if (profilePhoto) {
+      const uploadRes = await cloudinary.uploader.upload(profilePhoto, {
+        folder: "Westrance_dependents_profiles",
+        transformation: [{ width: 300, height: 300, crop: "fill" }],
+      });
+      uploadedImageUrl = uploadRes.secure_url;
+    }
+
+
+    // ✅ Step 4: Insert
+    await database.insert(addWestranceDependents).values({
+      firstName: FirstName,
+      middleName: MiddleName || null,
+      lastName: LastName,
+      emailAddress: EmailAddress || null,
+      relation: Relation,
+      PhoneNumber: PhoneNumber || null,
+      profileImage: uploadedImageUrl || null,
+      employeeId,
+      dependentId
+    });
+
+    return res.status(200).json({
+      message: "Dependent added successfully"
+    });
+
+  } catch (error: any) {
+    console.error("error", error);
+    return res.status(500).json({ error: "Something went wrong" });
+  }
+};
 
 
 

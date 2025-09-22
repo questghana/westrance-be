@@ -1,5 +1,5 @@
 import { database } from "@/configs/connection.config";
-import { account, addDependents, addEmployee, addEmployeeInvoice, addHospitalDependents, addHospitalEmployee, admins, companyregister, createTicket, users, WestranceEmployee, WestranceRolesManagement } from "@/schema/schema";
+import { account, addDependents, addEmployee, addEmployeeInvoice, addHospitalDependents, addHospitalEmployee, addWestranceDependents, admins, companyregister, createTicket, users, WestranceEmployee, WestranceRolesManagement } from "@/schema/schema";
 import { eq, desc, and, ne, or, sql } from "drizzle-orm";
 import { CookieOptions, Request, Response } from "express";
 import bcrypt from "bcryptjs"
@@ -558,6 +558,7 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             companyContact,
             startingDate,
             duration,
+            companyId, 
             amount,
             benefits,
             password,
@@ -566,8 +567,16 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             profilePhoto,
         } = req.body;
 
-        if (!firstName || !lastName || !email || !companyContact || !startingDate || !duration || !amount || !benefits || !password || !confirmPassword) {
-            return res.status(400).json({ error: "Missing required fields" });
+        if (!firstName || !lastName || !email || !companyContact || !startingDate || !duration || !amount || !benefits || !password || !confirmPassword || !companyId) {
+            return res.status(400).json({ error: "Missing required fields, including companyId" });
+        }
+
+        const company = await database.query.companyregister.findFirst({
+            where: (fields, { eq }) => eq(fields.companyId, companyId),
+        });
+
+        if (!company) {
+            return res.status(404).json({ error: "Company not found with the provided companyId" });
         }
 
         if (password !== confirmPassword) {
@@ -659,7 +668,7 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
         const insertedEmployess = await database.insert(WestranceEmployee).values({
             id: createId(),
             userId,
-            companyUserId: adminId,
+            companyUserId: companyId, // Assign the provided companyId here
             employeeId,
             firstName,
             middleName,
@@ -740,10 +749,10 @@ export const getWestranceEmployeesWithDependents = async (req: AuthenticatedRequ
             .from(WestranceEmployee)
             .where(eq(WestranceEmployee.employeeId, id))
 
-        // const dependents = await database
-        //     .select()
-        //     .from(addHospitalDependents)
-        //     .where(eq(addHospitalDependents.employeeId, id))
+        const Westrancedependents = await database
+            .select()
+            .from(addWestranceDependents)
+            .where(eq(addWestranceDependents.employeeId, id))
 
         if (!employee.length) {
             return res.status(404).json({ error: "Employee Not Found" })
@@ -751,7 +760,7 @@ export const getWestranceEmployeesWithDependents = async (req: AuthenticatedRequ
 
         return res.status(200).json({
             employee: employee[0],
-            // dependents
+            Westrancedependents
         })
 
     } catch (error) {
@@ -908,6 +917,85 @@ export const ActiveDeactiveWestranceEmployee = async (req: AuthenticatedRequestA
     }
 }
 
+// export const addWestranceDependentController = async (req: AuthenticatedRequestAdmin, res: Response) => {        
+//     try {
+//         const {
+//             FirstName,
+//             MiddleName,
+//             LastName,
+//             EmailAddress,
+//             Relation,
+//             PhoneNumber,
+//             profilePhoto,
+//             employeeId
+//         } = req.body;
+
+//         if (!FirstName || !LastName || !Relation || !employeeId) {
+//             return res.status(400).json({ error: "Missing required fields" });
+//         }
+
+//         const [westranceEmployee] = await database
+//             .select()
+//             .from(WestranceEmployee)
+//             .where(eq(WestranceEmployee.employeeId, employeeId));
+
+
+//         if (!westranceEmployee) {
+//             return res.status(404).json({ error: "Employee not found" });
+//         }
+
+//         const allowedDependents = westranceEmployee ? Number(westranceEmployee.dependents ?? 0) : 0;
+
+//         // ✅ Step 2: Get current dependents of this employee
+//         const existingDependents = await database
+//             .select()
+//             .from(addWestranceDependents)
+//             .where(eq(addWestranceDependents.employeeId, employeeId));
+
+//         const currentDependentCount = existingDependents.length;
+
+//         // ✅ Step 3: Validation
+//         if (allowedDependents === 0) {
+//             return res.status(400).json({ error: "No dependents allowed for this employee." });
+//         }
+
+//         if (currentDependentCount >= allowedDependents) {
+//             return res.status(400).json({ error: `Only ${allowedDependents} dependents are allowed.` });
+//         }
+
+
+//         let uploadedImageUrl: string | null = null;
+//         if (profilePhoto) {
+//             const uploadRes = await cloudinary.uploader.upload(profilePhoto, {
+//                 folder: "Westrance_dependents_profiles",
+//                 transformation: [{ width: 300, height: 300, crop: "fill" }],
+//             });
+//             uploadedImageUrl = uploadRes.secure_url;
+//         }
+
+
+//         // ✅ Step 4: Insert
+//         await database.insert(addWestranceDependents).values({
+//             firstName: FirstName,
+//             middleName: MiddleName || null,
+//             lastName: LastName,
+//             emailAddress: EmailAddress || null,
+//             relation: Relation,
+//             PhoneNumber: PhoneNumber || null,
+//             profileImage: uploadedImageUrl || null,
+//             employeeId
+//         });
+
+//         return res.status(200).json({
+//             message: "Dependent added successfully"
+//         });
+
+//     } catch (error: any) {
+//         console.error("error", error);
+//         return res.status(500).json({ error: "Something went wrong" });
+//     }
+// };
+
 export const getAllInvoices = async (req: AuthenticatedRequestAdmin, res: Response) => {
     try {
         const adminId = req.admin?.id;
@@ -942,9 +1030,9 @@ export const getAllInvoices = async (req: AuthenticatedRequestAdmin, res: Respon
             .limit(limit)
             .offset(offset)
 
-        if (!Invoices || Invoices.length === 0) {
-            return res.status(404).json({ message: "No invoice found" });
-        }
+        // if (!Invoices || Invoices.length === 0) {
+        //     return res.status(404).json({ message: "No invoice found" });
+        // }
 
         const total = await database
             .select({ count: sql<number>`count(*)`.as("count") })

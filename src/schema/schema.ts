@@ -139,12 +139,13 @@ export const addEmployee = pgTable("Addemployee", {
 export const addDependents = pgTable("AddDependents", {
   id: uuid().primaryKey(),
   employeeId: uuid("employee_id").notNull().references(() => addEmployee.employeeId, { onDelete: "cascade" }),
+  dependentId: varchar("dependent_id", { length: 20 }).notNull().unique(),
   firstName: varchar("first_name", { length: 100 }).notNull(),
   middleName: varchar("middle_name", { length: 100 }),
   lastName: varchar("last_name", { length: 100 }).notNull(),
   emailAddress: varchar("email_address", { length: 100 }),
   relation: varchar("relation", { length: 100 }).notNull(),
-  registrationNumber: varchar("registration_number"),
+  PhoneNumber: varchar("phone_number"),
   profileImage: varchar("profile_image", { length: 300 }),
   ...timeStamps,
 });
@@ -185,12 +186,13 @@ export const addHospitalEmployee = pgTable("add_hospital_employee", {
 export const addHospitalDependents = pgTable("AddHospitalDependents", {
   id: uuid().primaryKey(),
   employeeId: uuid("employee_id").notNull().references(() => addHospitalEmployee.employeeId, { onDelete: "cascade" }),
+  dependentId: varchar("dependent_id", { length: 20 }).notNull().unique(),
   firstName: varchar("first_name", { length: 100 }).notNull(),
   middleName: varchar("middle_name", { length: 100 }),
   lastName: varchar("last_name", { length: 100 }).notNull(),
   emailAddress: varchar("email_address", { length: 100 }),
   relation: varchar("relation", { length: 100 }).notNull(),
-  registrationNumber: varchar("registration_number"),
+  PhoneNumber: varchar("phone_number"),
   profileImage: varchar("profile_image", { length: 300 }),
   ...timeStamps,
 });
@@ -259,6 +261,22 @@ export const WestranceRolesManagement = pgTable("westrance_roles_management", {
   Password: varchar("password", { length: 100 }).notNull(),
   ConfirmPassword: varchar("confirm_password", { length: 100 }).notNull(),
 })
+
+export const addWestranceDependents = pgTable("Add_Westrance_Dependents", {
+  id: uuid().primaryKey(),
+  employeeId: uuid("employee_id").notNull().references(() => WestranceEmployee.employeeId, { onDelete: "cascade" }),
+  dependentId: varchar("dependent_id", { length: 20 }).notNull().unique(),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  middleName: varchar("middle_name", { length: 100 }),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  emailAddress: varchar("email_address", { length: 100 }),
+  relation: varchar("relation", { length: 100 }).notNull(),
+  PhoneNumber: varchar("phone_number"),
+  profileImage: varchar("profile_image", { length: 300 }),
+  ...timeStamps,
+});
+
+
 
 
 export const addEmployeeRelations = relations(addEmployee, ({ one }) => ({

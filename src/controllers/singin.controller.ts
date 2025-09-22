@@ -335,7 +335,7 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
         data: {
           token,
           user: { ...user[0], role },
-          employee: westranceEmployee[0]  // <- yahan explicitly bhejo        
+          employee: westranceEmployee[0]   
         }
         })
     }
