@@ -10,6 +10,7 @@ import cloudinary from "@/configs/cloudniary.config";
 import { createId } from "@paralleldrive/cuid2";
 import { generateBetterAuthPasswordHash } from "@/utils/password-hash.util";
 import generateEmployeeId from "@/utils/generate.employeeid";
+import { notifications } from "@/schema/schema";
 
 
 config();
@@ -1270,6 +1271,111 @@ export const addWestranceEmployeeRoleManagement = async (req: AuthenticatedReque
         return res.status(500).json({ error: "Something went wrong" });
     }
 }
+
+export const getAdminNotifications = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id;
+        if (!adminId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        const notificationsList = await database
+            .select()
+            .from(notifications)
+            .where(eq(notifications.recipientId, adminId))
+            .orderBy(desc(notifications.createdAt))
+            .limit(10); // Adjust limit as needed
+
+        const unreadCount = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(notifications)
+            .where(and(eq(notifications.recipientId, adminId), eq(notifications.isRead, false)));
+
+        return res.status(200).json({
+            notifications: notificationsList,
+            unreadCount: unreadCount[0]?.count || 0,
+        });
+    } catch (error) {
+        console.error("Failed to fetch admin notifications:", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+export const updateNotificationStatus = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id;
+        if (!adminId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        const { notificationId } = req.params;
+        const { isRead } = req.body;
+
+        if (typeof isRead !== 'boolean') {
+            return res.status(400).json({ error: "Invalid 'isRead' status provided" });
+        }
+
+        const [updatedNotification] = await database
+            .update(notifications)
+            .set({ isRead: isRead, updatedAt: new Date() })
+            .where(and(eq(notifications.id, notificationId), eq(notifications.recipientId, adminId)))
+            .returning();
+
+        if (!updatedNotification) {
+            return res.status(404).json({ error: "Notification not found or not authorized" });
+        }
+
+        return res.status(200).json({
+            message: "Notification status updated successfully",
+            notification: updatedNotification,
+        });
+    } catch (error) {
+        console.error("Failed to update notification status:", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+export const markAllNotificationsAsRead = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id;
+        if (!adminId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        await database
+            .update(notifications)
+            .set({ isRead: true, updatedAt: new Date() })
+            .where(eq(notifications.recipientId, adminId));
+
+        return res.status(200).json({ message: "All notifications marked as read" });
+    } catch (error) {
+        console.error("Failed to mark all notifications as read:", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+export const deleteNotification = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id;
+        if (!adminId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        const { notificationId } = req.params;
+
+        const [deletedNotification] = await database
+            .delete(notifications)
+            .where(and(eq(notifications.id, notificationId), eq(notifications.recipientId, adminId)))
+            .returning();
+
+        if (!deletedNotification) {
+            return res.status(404).json({ error: "Notification not found or not authorized" });
+        }
+
+        return res.status(200).json({ message: "Notification deleted successfully" });
+    } catch (error) {
+        console.error("Failed to delete notification:", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
 
 export const getAdminDetail = async (req: AuthenticatedRequestAdmin, res: Response) => {
     try {

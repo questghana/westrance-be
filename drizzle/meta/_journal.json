@@ -127,6 +127,20 @@
       "when": 1758516105439,
       "tag": "0017_sudden_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1758602985706,
+      "tag": "0018_melted_blink",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1758606090119,
+      "tag": "0019_luxuriant_invaders",
+      "breakpoints": true
     }
   ]
 }

@@ -217,7 +217,7 @@ export const addEmployeeInvoice = pgTable("add_invoice", {
   Amount: varchar("amount", { length: 100 }).notNull(),
   RemainingBalance: varchar("remaining_balance", { length: 100 }).notNull(),
   BenefitUsed: varchar("benefit", { length: 100 }).notNull(),
-  SubmittedDate: varchar("submit_date", { length: 100 }).notNull(),
+  SubmittedDate: timestamp("submit_date", { withTimezone: false }).notNull(),
 })
 
 // ======= admin ========= // 
@@ -229,6 +229,15 @@ export const admins = pgTable("admins", {
   role: varchar("role", { length: 50 }),
   profileImage: varchar("profile_image", { length: 300 }),
 })
+
+export const notifications = pgTable("notifications", {
+  id: uuid().primaryKey(),
+  recipientId: varchar("recipient_id", { length: 128 }).notNull().references(() => admins.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 50 }).notNull(), // e.g., "new_ticket", "new_employee"
+  message: varchar("message", { length: 500 }).notNull(),
+  isRead: boolean("is_read").default(false).notNull(),
+  ...timeStamps,
+});
 
 export const WestranceEmployee = pgTable("Westrance_Employee", {
   id: uuid().primaryKey(),

@@ -1109,7 +1109,7 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
             Amount,
             RemainingBalance: newBalance.toString(),
             BenefitUsed,
-            SubmittedDate,
+            SubmittedDate: new Date(SubmittedDate),
         });
 
         return res.status(200).json({
@@ -1205,6 +1205,49 @@ export const downloadInvoice = async (req: AuthenticatedRequest, res: Response) 
         res.status(500).json({ error: "Something went wrong while generating invoice" });
     }
 }
+
+export const getMonthlyPatientVisits = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const user = req.user;
+        if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+        const company = await database.query.companyregister.findFirst({
+            where: (fields, { eq }) => eq(fields.companyId, user.userId),
+        });
+
+        if (!company || (company.companyType !== "Hospital" && company.companyType !== "Pharmacy")) {
+            return res.status(403).json({ message: "Only Hospital or Pharmacy can view patient visit analytics." });
+        }
+
+        const currentYear = new Date().getFullYear();
+
+        const monthlyVisits = await database.execute(sql`
+        SELECT
+          EXTRACT(MONTH FROM "submit_date"::timestamp)::int AS month,
+          COUNT(*)::int AS visits
+        FROM "add_invoice"
+        WHERE
+          EXTRACT(YEAR FROM "submit_date"::timestamp) = ${currentYear}
+          AND "company_id" = ${user.userId}
+        GROUP BY month
+        ORDER BY month ASC
+      `);
+
+        const result = Array.from({ length: 12 }, (_, i) => {
+            const monthNum = i + 1;
+            const monthData = monthlyVisits.rows.find((row: any) => row.month === monthNum);
+            return {
+                month: new Date(currentYear, i).toLocaleString("en-US", { month: "long" }),
+                visits: monthData ? Number(monthData.visits) : 0,
+            };
+        });
+
+        return res.status(200).json({ data: result });
+    } catch (error: any) {
+        console.error("Error fetching monthly patient visits:", error);
+        return res.status(500).json({ error: error.message || "Something went wrong" });
+    }
+};
 
 
 

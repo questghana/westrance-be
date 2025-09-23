@@ -1,6 +1,6 @@
 import { database } from "@/configs/connection.config";
 import { AuthenticatedRequest } from "@/middlewares/auth.middleware";
-import { companyregister, createTicket } from "@/schema/schema";
+import { companyregister, createTicket, admins, notifications } from "@/schema/schema";
 import { desc, eq } from "drizzle-orm";
 import { Response } from "express";
 
@@ -42,6 +42,17 @@ export const createTicketController = async (req: AuthenticatedRequest, res: Res
             companyId: company.companyId
         }).returning()
 
+        const allAdmins = await database.select().from(admins);
+
+        for (const admin of allAdmins) {
+            await database.insert(notifications).values({
+                recipientId: admin.id,
+                type: "new_ticket",
+                message: `A new ticket has been created by ${AdministrativeFullName} with subject: ${Subject}`,
+                isRead: false,
+            });
+        }
+
         return res.status(200).json({
             data,
             message: "Ticket Create Successfully"
@@ -57,7 +68,6 @@ export const createTicketController = async (req: AuthenticatedRequest, res: Res
 export const getTicketController = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const userId = req.user?.userId
-        console.log(userId);
         if (!userId) {
             return res.status(401).json({ error: "Unauthorized" })
         }
