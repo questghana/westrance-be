@@ -422,13 +422,13 @@ export const getHospitalPharmacy = async (req: Request, res: Response) => {
 
         // Total Hospital count
         const [{ hospitalCount }] = await database
-            .select({ hospitalCount: sql<number>`count(*)`.mapWith(Number)})
+            .select({ hospitalCount: sql<number>`count(*)`.mapWith(Number) })
             .from(companyregister)
             .where(eq(companyregister.companyType, "Hospital"));
 
         // Total Pharmacy count
         const [{ pharmacyCount }] = await database
-            .select({ pharmacyCount: sql<number>`count(*)`.mapWith(Number)})
+            .select({ pharmacyCount: sql<number>`count(*)`.mapWith(Number) })
             .from(companyregister)
             .where(eq(companyregister.companyType, "Pharmacy"));
 
@@ -648,3 +648,69 @@ export const getInvoiceByCompany = async (req: AuthenticatedRequest, res: Respon
     }
 };
 
+export const getCompanyAnalytics = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const userId = req.user?.userId;
+        if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+        // Analytics
+        const analytics = await database
+            .select()
+            .from(addEmployee)
+            .leftJoin(addDependents, eq(addEmployee.employeeId, addDependents.employeeId))
+            .where(eq(addEmployee.companyUserId, userId))
+
+        const totalEmployees = analytics.length;
+        const totalEmployeesWithDependents = analytics.filter(emp => emp.AddDependents).length;
+
+        return res.status(200).json({
+            totalEmployees,
+            totalEmployeesWithDependents
+        });
+    } catch (error) {
+        console.error("Failed to fetch company analytics", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+}
+
+export const getCompanyDashboardStats = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const userId = req.user?.userId;
+        if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+        // Total Employees
+        const employees = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(addEmployee)
+            .where(eq(addEmployee.companyUserId, userId));
+
+        // Total Employees with Dependents
+        const employeesWithDependents = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(addEmployee)
+            .leftJoin(addDependents, eq(addEmployee.employeeId, addDependents.employeeId))
+            .where(eq(addEmployee.companyUserId, userId));
+
+        // Connected Hospitals
+        const hospitals = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(companyregister)
+            .where(eq(companyregister.companyType, "Hospital"));
+
+        // Connected Pharmacies
+        const pharmacies = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(companyregister)
+            .where(eq(companyregister.companyType, "Pharmacy"));
+
+        return res.status(200).json({
+            employees: employees[0].count,
+            employeesWithDependents: employeesWithDependents[0].count,
+            hospitals: hospitals[0].count,
+            pharmacies: pharmacies[0].count,
+        });
+    } catch (error) {
+        console.error("Failed to fetch company dashboard stats", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+}

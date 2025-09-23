@@ -1284,7 +1284,7 @@ export const getAdminNotifications = async (req: AuthenticatedRequestAdmin, res:
             .from(notifications)
             .where(eq(notifications.recipientId, adminId))
             .orderBy(desc(notifications.createdAt))
-            .limit(10); // Adjust limit as needed
+            .limit(10); 
 
         const unreadCount = await database
             .select({ count: sql<number>`count(*)` })

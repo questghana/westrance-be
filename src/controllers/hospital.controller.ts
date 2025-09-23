@@ -556,7 +556,7 @@ export const editHospitalEmployee = async (req: AuthenticatedRequest, res: Respo
                 profileImg = profilePhoto;
             }
         }
-
+        const hashedPassword = await generateBetterAuthPasswordHash(password);
         const updateEmployee = await database.update(addHospitalEmployee).set({
             firstName,
             middleName,
@@ -568,7 +568,7 @@ export const editHospitalEmployee = async (req: AuthenticatedRequest, res: Respo
             amountPackage: amount,
             benefits,
             dependents,
-            createPassword: password,
+            createPassword: hashedPassword,
             profileImage: profileImg
         }).where(eq(addHospitalEmployee.employeeId, employeeId)).returning()
 
@@ -1246,6 +1246,47 @@ export const getMonthlyPatientVisits = async (req: AuthenticatedRequest, res: Re
     } catch (error: any) {
         console.error("Error fetching monthly patient visits:", error);
         return res.status(500).json({ error: error.message || "Something went wrong" });
+    }
+};
+
+export const getHospitalDashboardStats = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        // Total Verified Beneficiaries (Employees + Dependents)
+        const totalEmployees = await database.select({ count: sql<number>`count(*)` }).from(addHospitalEmployee).where(eq(addHospitalEmployee.companyUserId, userId));
+        const totalDependents = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(addHospitalDependents)
+            .where(inArray(addHospitalDependents.employeeId, database.select({ employeeId: addHospitalEmployee.employeeId }).from(addHospitalEmployee).where(eq(addHospitalEmployee.companyUserId, userId))));
+
+
+        const totalVerifiedBeneficiaries = Number(totalEmployees[0]?.count || 0) + Number(totalDependents[0]?.count || 0);
+
+        // Bills Submitted
+        const billsSubmitted = await database.select({ count: sql<number>`count(*)` }).from(addEmployeeInvoice).where(eq(addEmployeeInvoice.companyId, userId));
+
+        // Bills Awaiting Payment (Assuming RemainingBalance > 0)
+        const billsAwaitingPayment = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(addEmployeeInvoice)
+            .where(and(eq(addEmployeeInvoice.companyId, userId), sql`CAST(${addEmployeeInvoice.RemainingBalance} AS DECIMAL) > 0`));
+
+
+        const appointmentsToday = "0";
+
+        return res.status(200).json({
+            totalVerifiedBeneficiaries,
+            appointmentsToday,
+            billsSubmitted: billsSubmitted[0]?.count || 0,
+            billsAwaitingPayment: billsAwaitingPayment[0]?.count || 0,
+        });
+    } catch (error) {
+        console.error("Error fetching hospital dashboard stats:", error);
+        return res.status(500).json({ error: "Internal server error" });
     }
 };
 

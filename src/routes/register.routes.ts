@@ -1,4 +1,4 @@
-import { ActiveDeactiveemployee, companyRegisterController, deleteEmployee, editEmployee, getCompanyDetail, getCompanyEmployees, getCompanyEmployeesWithDependentsCount, getEmployeeWithDependents, getHospitalPharmacy, getInvoiceByCompany, updateCompanyDetail, } from "@/controllers/companyregister.controller";
+import { ActiveDeactiveemployee, companyRegisterController, deleteEmployee, editEmployee, getCompanyAnalytics, getCompanyDashboardStats, getCompanyDetail, getCompanyEmployees, getCompanyEmployeesWithDependentsCount, getEmployeeWithDependents, getHospitalPharmacy, getInvoiceByCompany, updateCompanyDetail, } from "@/controllers/companyregister.controller";
 import { verifyToken } from "@/middlewares/auth.middleware";
 import { Router } from "express";
 
@@ -16,5 +16,6 @@ companyregisterRoutes.post("/employee/status", verifyToken, ActiveDeactiveemploy
 companyregisterRoutes.put("/edit/employee", verifyToken, editEmployee)
 companyregisterRoutes.get("/employee/dependents", verifyToken, getCompanyEmployeesWithDependentsCount)
 companyregisterRoutes.get("/getinvoice", verifyToken, getInvoiceByCompany)
-
+companyregisterRoutes.get("/analytics", verifyToken, getCompanyAnalytics)
+companyregisterRoutes.get("/dashboard-stats", verifyToken, getCompanyDashboardStats)
 export {companyregisterRoutes};

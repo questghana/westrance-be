@@ -249,7 +249,7 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
         .limit(1);
 
       if (!company[0].isActive) {
-        return res.status(403).json({ error: "Your account has been DeActivated by Company" });
+        return res.status(403).json({ error: "Your account has been DeActivated by Admin" });
       }
 
       return res.status(200).json({
