@@ -653,19 +653,43 @@ export const getCompanyAnalytics = async (req: AuthenticatedRequest, res: Respon
         const userId = req.user?.userId;
         if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-        // Analytics
-        const analytics = await database
-            .select()
+        const monthlyAnalytics = await database
+            .select({
+                month: sql<string>`TO_CHAR(${addEmployee.startingDate}, 'Month')`,
+                totalEmployees: sql<number>`COUNT(DISTINCT ${addEmployee.employeeId})`.as('totalEmployees'),
+                employeesWithDependents: sql<number>`COUNT(DISTINCT ${addEmployee.employeeId}) FILTER (WHERE ${addDependents.dependentId} IS NOT NULL)`.as('employeesWithDependents'),
+            })
             .from(addEmployee)
             .leftJoin(addDependents, eq(addEmployee.employeeId, addDependents.employeeId))
             .where(eq(addEmployee.companyUserId, userId))
+            .groupBy(sql`TO_CHAR(${addEmployee.startingDate}, 'Month')`)
+            .orderBy(sql`MIN(${addEmployee.startingDate})`);
 
-        const totalEmployees = analytics.length;
-        const totalEmployeesWithDependents = analytics.filter(emp => emp.AddDependents).length;
+        const result = [
+            { month: "January", totalEmployees: 0, employeesWithDependents: 0 },
+            { month: "February", totalEmployees: 0, employeesWithDependents: 0 },
+            { month: "March", totalEmployees: 0, employeesWithDependents: 0 },
+            { month: "April", totalEmployees: 0, employeesWithDependents: 0 },
+            { month: "May", totalEmployees: 0, employeesWithDependents: 0 },
+            { month: "June", totalEmployees: 0, employeesWithDependents: 0 },
+            { month: "July", totalEmployees: 0, employeesWithDependents: 0 },
+            { month: "August", totalEmployees: 0, employeesWithDependents: 0 },
+            { month: "September", totalEmployees: 0, employeesWithDependents: 0 },
+            { month: "October", totalEmployees: 0, employeesWithDependents: 0 },
+            { month: "November", totalEmployees: 0, employeesWithDependents: 0 },
+            { month: "December", totalEmployees: 0, employeesWithDependents: 0 },
+        ];
+
+        monthlyAnalytics.forEach(data => {
+            const monthIndex = result.findIndex(m => m.month === data.month);
+            if (monthIndex !== -1) {
+                result[monthIndex].totalEmployees = data.totalEmployees;
+                result[monthIndex].employeesWithDependents = data.employeesWithDependents;
+            }
+        });
 
         return res.status(200).json({
-            totalEmployees,
-            totalEmployeesWithDependents
+            data: result
         });
     } catch (error) {
         console.error("Failed to fetch company analytics", error);
@@ -686,10 +710,10 @@ export const getCompanyDashboardStats = async (req: AuthenticatedRequest, res: R
 
         // Total Employees with Dependents
         const employeesWithDependents = await database
-            .select({ count: sql<number>`count(*)` })
+            .select({ count: sql<number>`count(DISTINCT ${addEmployee.employeeId})` })
             .from(addEmployee)
             .leftJoin(addDependents, eq(addEmployee.employeeId, addDependents.employeeId))
-            .where(eq(addEmployee.companyUserId, userId));
+            .where(sql`${addDependents.dependentId} IS NOT NULL AND ${addEmployee.companyUserId} = ${userId}`);
 
         // Connected Hospitals
         const hospitals = await database

@@ -559,7 +559,7 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             companyContact,
             startingDate,
             duration,
-            companyId, 
+            companyId,
             amount,
             benefits,
             password,
@@ -619,7 +619,7 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             if (existingUser[0].role !== "Westrance Employee") {
                 await database
                     .update(users)
-                    .set({ role: "Westrance Employee"})
+                    .set({ role: "Westrance Employee" })
                     .where(eq(users.id, userId));
             }
         } else {
@@ -1284,7 +1284,7 @@ export const getAdminNotifications = async (req: AuthenticatedRequestAdmin, res:
             .from(notifications)
             .where(eq(notifications.recipientId, adminId))
             .orderBy(desc(notifications.createdAt))
-            .limit(10); 
+            .limit(10);
 
         const unreadCount = await database
             .select({ count: sql<number>`count(*)` })
@@ -1459,3 +1459,44 @@ export const updateAdminDetail = async (req: AuthenticatedRequestAdmin, res: Res
         return res.status(500).json({ error: "Internal server error" });
     }
 };
+
+export const adminDashboardStats = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id
+        if (!adminId) return res.status(401).json({ error: "Unauthorized" })
+        console.log(adminId);
+
+        // total companies not admin company
+        const totalCompanies = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(companyregister)
+            .where(and(ne(companyregister.companyId, "COMP-001"), eq(companyregister.isActive, true)))
+
+        // total westrance employees
+        const totalWestranceEmployees = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(WestranceEmployee)
+
+        //  total healthcare providers both hospital and pharmacy
+        const totalHealthcareProviders = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(companyregister)
+            .where(or(eq(companyregister.companyType, "Hospital"), eq(companyregister.companyType, "Pharmacy")))
+
+        // total monthly claims
+        const totalMonthlyClaims = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(addEmployeeInvoice)
+
+        return res.status(200).json({
+            totalCompanies: totalCompanies[0].count,
+            totalWestranceEmployees: totalWestranceEmployees[0].count,
+            totalHealthcareProviders: totalHealthcareProviders[0].count,
+            totalMonthlyClaims: totalMonthlyClaims[0].count
+        })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: "Something went wrong" })
+    }
+}

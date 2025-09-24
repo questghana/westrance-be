@@ -1,6 +1,6 @@
 import { Response } from "express";
 import { database } from "@/configs/connection.config";
-import { addEmployee, users, account, addDependents, WestranceEmployee, addWestranceDependents } from "@/schema/schema";
+import { addEmployee, users, account, addDependents, WestranceEmployee, addWestranceDependents, addHospitalEmployee, addEmployeeInvoice } from "@/schema/schema";
 import generateEmployeeId from "@/utils/generate.employeeid";
 import { eq } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
@@ -463,6 +463,96 @@ export const addWestranceDependentController = async (req: AuthenticatedRequest,
   }
 };
 
+export const getEmployeeDashboardStats = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+   const userId = req.user?.userId
+   if(!userId) return res.status(401).json({error: "Unauthorized"})
 
+   const employee = await database
+   .select({ employeeId: addEmployee.employeeId, benefits: addEmployee.benefits, amountPackage: addEmployee.amountPackage, duration: addEmployee.duration })
+   .from(addEmployee)
+   .where(eq(addEmployee.userId, userId));
+
+    const hospitalEmployee = await database
+    .select({ employeeId: addHospitalEmployee.employeeId, benefits: addHospitalEmployee.benefits, amountPackage: addHospitalEmployee.amountPackage, duration: addHospitalEmployee.duration })
+    .from(addHospitalEmployee)
+    .where(eq(addHospitalEmployee.userId, userId));
+
+    const westranceEmployee = await database
+    .select({ employeeId: WestranceEmployee.employeeId, benefits: WestranceEmployee.benefits, amountPackage: WestranceEmployee.amountPackage, duration: WestranceEmployee.duration })
+    .from(WestranceEmployee)
+    .where(eq(WestranceEmployee.userId, userId));
+
+    let employeeData = null;
+
+    if (employee.length > 0) {
+      employeeData = employee[0];
+    } else if (hospitalEmployee.length > 0) {
+      employeeData = hospitalEmployee[0];
+    } else if (westranceEmployee.length > 0) {
+      employeeData = westranceEmployee[0];
+    }
+
+    if (!employeeData) {
+      return res.status(404).json({ error: "Employee not found in any table" });
+    }
+
+    return res.status(200).json({ employeeData });
+
+  } catch (error) {
+    console.error("error", error);
+    return res.status(500).json({ error: "Something went wrong" });
+  }
+}
+
+export const getEmployeeInvoice = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId
+    if (!userId) return res.status(401).json({ error: "Unauthorized" })
+    
+    const employeeResult = await database
+      .select({ employeeId: addEmployee.employeeId })
+      .from(addEmployee)
+      .where(eq(addEmployee.userId, userId))
+      .limit(1);
+
+    const hospitalEmployeeResult = await database
+      .select({ employeeId: addHospitalEmployee.employeeId })
+      .from(addHospitalEmployee)
+      .where(eq(addHospitalEmployee.userId, userId))
+      .limit(1);
+
+    const westranceEmployeeResult = await database
+      .select({ employeeId: WestranceEmployee.employeeId })
+      .from(WestranceEmployee)
+      .where(eq(WestranceEmployee.userId, userId))
+      .limit(1);    
+
+    let employeeId: string | undefined;
+
+    if (employeeResult.length > 0) {
+      employeeId = employeeResult[0].employeeId;
+    } else if (hospitalEmployeeResult.length > 0) {
+      employeeId = hospitalEmployeeResult[0].employeeId;
+    } else if (westranceEmployeeResult.length > 0) {
+      employeeId = westranceEmployeeResult[0].employeeId;
+    }
+
+    if (!employeeId) {
+      return res.status(404).json({ error: "Employee ID not found for the authenticated user" });
+    }
+
+    const EmployeeInvoice = await database
+      .select()
+      .from(addEmployeeInvoice)
+      .where(eq(addEmployeeInvoice.EmployeeId, employeeId));
+
+    return res.status(200).json({ EmployeeInvoice });
+
+  } catch (error) {
+    console.error("error", error);
+    return res.status(500).json({ error: "Something went wrong" });
+  }
+}
 
 

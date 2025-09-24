@@ -1,4 +1,4 @@
-import { ActiveDeactiveCompany, ActiveDeactiveWestranceEmployee, addWestranceEmployeeController, addWestranceEmployeeRoleManagement, adminlogincontroller, adminlogoutcontroller, deleteCompany, deleteHospitalPharmacy, deleteWestranceEmployee, editWestranceEmployee, getAdminDetail, getAllInvoices, getAllTicket, getCompany, getCompanyDetails, getEmployeeDetails, getHospitalEmployeeDetails, getHospitalPharmacy, getHospitalPharmacyDetails, getTicketById, getWestranceEmployees, getWestranceEmployeesWithDependents, MostRecentInvoiceByAdmin, MostRecentRegisterCompanyAdmin, RemoveTicketRequest, ReportsAnalytics, updateAdminDetail, updateTicketStatus, getAdminNotifications, updateNotificationStatus, markAllNotificationsAsRead, deleteNotification } from "@/controllers/admin.controller";
+import { ActiveDeactiveCompany, ActiveDeactiveWestranceEmployee, addWestranceEmployeeController, addWestranceEmployeeRoleManagement, adminlogincontroller, adminlogoutcontroller, deleteCompany, deleteHospitalPharmacy, deleteWestranceEmployee, editWestranceEmployee, getAdminDetail, getAllInvoices, getAllTicket, getCompany, getCompanyDetails, getEmployeeDetails, getHospitalEmployeeDetails, getHospitalPharmacy, getHospitalPharmacyDetails, getTicketById, getWestranceEmployees, getWestranceEmployeesWithDependents, MostRecentInvoiceByAdmin, MostRecentRegisterCompanyAdmin, RemoveTicketRequest, ReportsAnalytics, updateAdminDetail, updateTicketStatus, getAdminNotifications, updateNotificationStatus, markAllNotificationsAsRead, deleteNotification, adminDashboardStats } from "@/controllers/admin.controller";
 import { verifyTokenAdmin } from "@/middlewares/admin.middleware";
 import { Router } from "express";
 
@@ -47,4 +47,6 @@ adminRoute.patch("/notifications/:notificationId", verifyTokenAdmin, updateNotif
 adminRoute.post("/notifications/mark-all-read", verifyTokenAdmin, markAllNotificationsAsRead);
 adminRoute.delete("/notifications/:notificationId", verifyTokenAdmin, deleteNotification);
 
+// admin dashboardStats routes
+adminRoute.get("/stats", verifyTokenAdmin, adminDashboardStats)
 export { adminRoute }
