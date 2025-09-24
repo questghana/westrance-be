@@ -603,7 +603,6 @@ export const getInvoiceByCompany = async (req: AuthenticatedRequest, res: Respon
         const limit = parseInt(req.query.limit as string) || 10;
         const offset = (page - 1) * limit;
 
-        // Paginated invoices
         const invoices = await database
             .select({
                 id: addEmployeeInvoice.id,
@@ -626,7 +625,6 @@ export const getInvoiceByCompany = async (req: AuthenticatedRequest, res: Respon
             .offset(offset)
             .limit(limit);
 
-        // Total count
         const totalInvoices = await database
             .select({ count: sql<number>`count(*)`.as("count") })
             .from(addEmployeeInvoice)
@@ -735,6 +733,53 @@ export const getCompanyDashboardStats = async (req: AuthenticatedRequest, res: R
         });
     } catch (error) {
         console.error("Failed to fetch company dashboard stats", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+}
+
+export const getcompanyReportAnalyticsStats = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+       const userId = req.user?.userId;
+       if(!userId) return res.status(401).json({ error: "Unauthorized" });
+
+
+    const totalEmployeesCovered = await database
+        .select({ count: sql<number>`count(DISTINCT ${addEmployee.employeeId})` })
+        .from(addEmployee)
+        .where(eq(addEmployee.companyUserId, userId));
+
+    const totalMedicalCovered = await database
+        .select({ count: sql<number>`count(*)` })
+        .from(addEmployee)
+        .where(sql`${addEmployee.benefits} LIKE '%Medical%' AND ${addEmployee.companyUserId} = ${userId}`);
+
+    const totalBenefitsUtilizedResult = await database
+        .select({ total: sql<number>`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`.mapWith(Number) })
+        .from(addEmployeeInvoice)
+        .where(eq(addEmployeeInvoice.employerCompanyId, userId));
+
+    const totalBenefitsUtilized = totalBenefitsUtilizedResult[0]?.total || 0;
+
+    const totalAvailableBenefitsResult = await database
+        .select({ total: sql<number>`SUM(CAST(${addEmployee.amountPackage} AS REAL))`.mapWith(Number) })
+        .from(addEmployee)
+        .where(eq(addEmployee.companyUserId, userId));
+
+    const totalAvailableBenefits = totalAvailableBenefitsResult[0]?.total || 0;
+
+    let averageUtilizationRate = 0;
+    if (totalAvailableBenefits > 0) {
+        averageUtilizationRate = (totalBenefitsUtilized / totalAvailableBenefits) * 100;
+    }
+
+    return res.status(200).json({
+        totalEmployeesCovered: totalEmployeesCovered[0].count,
+        totalMedicalCovered: totalMedicalCovered[0].count,
+        totalBenefitsUtilized: totalBenefitsUtilized.toFixed(2),
+        averageUtilizationRate: averageUtilizationRate.toFixed(2) + '%',
+    });
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({ error: "Something went wrong" });
     }
 }
