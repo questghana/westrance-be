@@ -239,6 +239,17 @@ export const notifications = pgTable("notifications", {
   ...timeStamps,
 });
 
+export const companyNotifications = pgTable("company_notifications", {
+  id: uuid().primaryKey(),
+  recipientCompanyId: varchar("recipient_company_id", { length: 128 })
+    .notNull()
+    .references(() => companyregister.companyId, { onDelete: "cascade" }),
+  type: varchar("type", { length: 50 }).notNull(), // e.g., "ticket_status", "ticket_removed"
+  message: varchar("message", { length: 500 }).notNull(),
+  isRead: boolean("is_read").default(false).notNull(),
+  ...timeStamps,
+});
+
 export const WestranceEmployee = pgTable("Westrance_Employee", {
   id: uuid().primaryKey(),
   userId: varchar("user_id", { length: 128 }).notNull().references(() => users.id, { onDelete: "cascade" }),

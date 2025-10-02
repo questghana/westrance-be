@@ -1,4 +1,4 @@
-import { ActiveDeactiveemployee, companyRegisterController, deleteEmployee, editEmployee, getCompanyAnalytics, getCompanyDashboardStats, getCompanyDetail, getCompanyEmployees, getCompanyEmployeesWithDependentsCount, getEmployeeWithDependents, getHospitalPharmacy, getInvoiceByCompany, updateCompanyDetail, getcompanyReportAnalyticsStats, } from "@/controllers/companyregister.controller";
+import { ActiveDeactiveemployee, companyRegisterController, deleteEmployee, editEmployee, getCompanyAnalytics, getCompanyDashboardStats, getCompanyDetail, getCompanyEmployees, getCompanyEmployeesWithDependentsCount, getEmployeeWithDependents, getHospitalPharmacy, getInvoiceByCompany, updateCompanyDetail, getcompanyReportAnalyticsStats, getCompanyNotifications, updateCompanyNotificationStatus, markAllCompanyNotificationsAsRead, deleteCompanyNotification } from "@/controllers/companyregister.controller";
 import { verifyToken } from "@/middlewares/auth.middleware";
 import { Router } from "express";
 
@@ -19,4 +19,9 @@ companyregisterRoutes.get("/getinvoice", verifyToken, getInvoiceByCompany)
 companyregisterRoutes.get("/analytics", verifyToken, getCompanyAnalytics)
 companyregisterRoutes.get("/dashboard-stats", verifyToken, getCompanyDashboardStats)
 companyregisterRoutes.get("/reports-analytics-stats", verifyToken, getcompanyReportAnalyticsStats)
+// Company notifications
+companyregisterRoutes.get("/notifications", verifyToken, getCompanyNotifications)
+companyregisterRoutes.patch("/notifications/:notificationId", verifyToken, updateCompanyNotificationStatus)
+companyregisterRoutes.post("/notifications/mark-all-read", verifyToken, markAllCompanyNotificationsAsRead)
+companyregisterRoutes.delete("/notifications/:notificationId", verifyToken, deleteCompanyNotification)
 export {companyregisterRoutes};

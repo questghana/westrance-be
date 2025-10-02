@@ -37,7 +37,7 @@ const corsOptions: CorsOptions = {
   origin: ["http://localhost:4000", "https://westrance-fe.vercel.app"], 
   credentials: true,
 };
-console.log(process.env.FRONTEND_DOMAIN)
+// console.log(process.env.FRONTEND_DOMAIN)
 const io = new Server(httpServer, {
   cors: corsOptions,
 });

@@ -1,5 +1,5 @@
 import { database } from "@/configs/connection.config";
-import { account, addDependents, addEmployee, addEmployeeInvoice, addHospitalDependents, addHospitalEmployee, addWestranceDependents, admins, companyregister, createTicket, users, WestranceEmployee, WestranceRolesManagement } from "@/schema/schema";
+import { account, addDependents, addEmployee, addEmployeeInvoice, addHospitalDependents, addHospitalEmployee, addWestranceDependents, admins, companyregister, createTicket, users, WestranceEmployee, WestranceRolesManagement, companyNotifications } from "@/schema/schema";
 import { eq, desc, and, ne, or, sql } from "drizzle-orm";
 import { CookieOptions, Request, Response } from "express";
 import bcrypt from "bcryptjs"
@@ -11,6 +11,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { generateBetterAuthPasswordHash } from "@/utils/password-hash.util";
 import generateEmployeeId from "@/utils/generate.employeeid";
 import { notifications } from "@/schema/schema";
+import { startOfMonth, endOfMonth, subMonths } from "date-fns";
 
 
 config();
@@ -559,7 +560,6 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             companyContact,
             startingDate,
             duration,
-            companyId,
             amount,
             benefits,
             password,
@@ -568,16 +568,16 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             profilePhoto,
         } = req.body;
 
-        if (!firstName || !lastName || !email || !companyContact || !startingDate || !duration || !amount || !benefits || !password || !confirmPassword || !companyId) {
-            return res.status(400).json({ error: "Missing required fields, including companyId" });
+        if (!firstName || !lastName || !email || !companyContact || !startingDate || !duration || !amount || !benefits || !password || !confirmPassword) {
+            return res.status(400).json({ error: "Missing required fields" });
         }
 
         const company = await database.query.companyregister.findFirst({
-            where: (fields, { eq }) => eq(fields.companyId, companyId),
+            where: (fields, { eq }) => eq(fields.companyId, 'COMP-001'),
         });
 
         if (!company) {
-            return res.status(404).json({ error: "Company not found with the provided companyId" });
+            return res.status(404).json({ error: "Company not found" });
         }
 
         if (password !== confirmPassword) {
@@ -669,10 +669,10 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
         const insertedEmployess = await database.insert(WestranceEmployee).values({
             id: createId(),
             userId,
-            companyUserId: companyId, // Assign the provided companyId here
+            companyUserId: adminId,
             employeeId,
             firstName,
-            middleName,
+            middleName, 
             lastName,
             emailAddress: email,
             registrationNumber: companyContact,
@@ -1184,6 +1184,24 @@ export const updateTicketStatus = async (req: AuthenticatedRequestAdmin, res: Re
             return res.status(404).json({ error: "Ticket not found" });
         }
 
+        // Create a company in-app notification about ticket status update
+        const [ticket] = await database
+            .select({
+                companyId: createTicket.companyId,
+                subject: createTicket.subject,
+            })
+            .from(createTicket)
+            .where(eq(createTicket.id, ticketId))
+
+        if (ticket) {
+            await database.insert(companyNotifications).values({
+                recipientCompanyId: ticket.companyId,
+                type: "ticket_status",
+                message: `Your ticket (Subject: ${ticket.subject}) has been marked as ${Status}.`,
+                isRead: false,
+            });
+        }
+
         return res.status(200).json({
             message: `Ticket marked as ${Status}`,
             ticket: updated[0].status
@@ -1200,9 +1218,27 @@ export const RemoveTicketRequest = async (req: AuthenticatedRequestAdmin, res: R
         const adminId = req.admin?.id
         if (!adminId) return res.status(401).json({ error: "unauthorized" })
         const { ticketId } = req.params
+
+        const [ticket] = await database
+            .select({
+                companyId: createTicket.companyId,
+                subject: createTicket.subject,
+            })
+            .from(createTicket)
+            .where(eq(createTicket.id, ticketId))
+
         await database
             .delete(createTicket)
             .where(eq(createTicket.id, ticketId))
+
+        if (ticket) {
+            await database.insert(companyNotifications).values({
+                recipientCompanyId: ticket.companyId,
+                type: "ticket_removed",
+                message: `Your ticket (Subject: ${ticket.subject}) has been removed by the admin.`,
+                isRead: false,
+            });
+        }
 
         return res.status(200).json({
             message: "Ticket Removed Successfully"
@@ -1266,6 +1302,16 @@ export const addWestranceEmployeeRoleManagement = async (req: AuthenticatedReque
             data: result,
             message: "Role added successfully"
         });
+    } catch (error: any) {
+        console.error("error", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+}
+
+export const getWestranceDepartment = async (_req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const department = await database.select({ RoleName: WestranceRolesManagement.RoleName, employeeId: WestranceRolesManagement.employeeId }).from(WestranceRolesManagement)
+        return res.status(200).json({ department })
     } catch (error: any) {
         console.error("error", error);
         return res.status(500).json({ error: "Something went wrong" });
@@ -1500,3 +1546,153 @@ export const adminDashboardStats = async (req: AuthenticatedRequestAdmin, res: R
         return res.status(500).json({ error: "Something went wrong" })
     }
 }
+
+export const monthlyWestranceUsageAnalytics = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id
+        if (!adminId) return res.status(401).json({ error: "Unauthorized" })
+
+        const monthlyUsage = [];
+        for (let i = 11; i >= 0; i--) {
+            const date = subMonths(new Date(), i);
+            const start = startOfMonth(date);
+            const end = endOfMonth(date);
+            const monthName = date.toLocaleString('default', { month: 'long' });
+
+            const [countResult] = await database
+                .select({ count: sql<number>`count(*)`.as("count") })
+                .from(companyregister)
+                .where(
+                    and(
+                        eq(companyregister.isActive, true),
+                        sql`${companyregister.createdAt} BETWEEN ${start.toISOString()} AND ${end.toISOString()}`
+                    )
+                );
+            monthlyUsage.push({
+                month: monthName,
+                desktop: countResult.count,
+                mobile: 0
+            });
+        }
+
+        return res.status(200).json({
+            monthlyUsage
+        })
+
+    } catch (error) {
+        console.error("Failed to fetch monthly Westrance usage analytics:", error);
+        return res.status(500).json({ error: "Something went wrong" })
+    }
+}
+
+export const getReportsAnalyticsStatistics = async (req: AuthenticatedRequestAdmin, res: Response) => {
+    try {
+        const adminId = req.admin?.id;
+        if (!adminId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        // Get total employees covered (all active employees from all three types)
+        const [regularEmployees, hospitalEmployees, westranceEmployees] = await Promise.all([
+            database
+                .select({ count: sql<number>`count(DISTINCT ${addEmployee.employeeId})` })
+                .from(addEmployee)
+                .where(eq(addEmployee.isActive, true)),
+
+            database
+                .select({ count: sql<number>`count(DISTINCT ${addHospitalEmployee.employeeId})` })
+                .from(addHospitalEmployee)
+                .where(eq(addHospitalEmployee.isActive, true)),
+
+            database
+                .select({ count: sql<number>`count(DISTINCT ${WestranceEmployee.employeeId})` })
+                .from(WestranceEmployee)
+                .where(eq(WestranceEmployee.isActive, true))
+        ]);
+
+        const totalEmployeesCovered = {
+            count: Number(regularEmployees[0]?.count || 0) + Number(hospitalEmployees[0]?.count || 0) + Number(westranceEmployees[0]?.count || 0)
+        };
+
+        // Get total medical covered (count of employees with medical benefits from all types)
+        const [regularMedical, hospitalMedical, westranceMedical] = await Promise.all([
+            database
+                .select({ count: sql<number>`count(*)` })
+                .from(addEmployee)
+                .where(sql`${addEmployee.benefits} LIKE '%Medical%' AND ${addEmployee.isActive} = true`),
+
+            database
+                .select({ count: sql<number>`count(*)` })
+                .from(addHospitalEmployee)
+                .where(sql`${addHospitalEmployee.benefits} LIKE '%Medical%' AND ${addHospitalEmployee.isActive} = true`),
+
+            database
+                .select({ count: sql<number>`count(*)` })
+                .from(WestranceEmployee)
+                .where(sql`${WestranceEmployee.benefits} LIKE '%Medical%' AND ${WestranceEmployee.isActive} = true`)
+        ]);
+
+        const totalMedicalCovered = {
+            count: Number(regularMedical[0]?.count || 0) + Number(hospitalMedical[0]?.count || 0) + Number(westranceMedical[0]?.count || 0)
+        };
+
+        // Get total benefits utilized (sum of all invoice amounts)
+        const totalBenefitsUtilizedResult = await database
+            .select({ total: sql<number>`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`.mapWith(Number) })
+            .from(addEmployeeInvoice);
+
+        const totalBenefitsUtilized = totalBenefitsUtilizedResult[0]?.total || 0;
+
+        // Get total available benefits (sum of all employee amount packages from all types)
+        const [regularBenefits, hospitalBenefits, westranceBenefits] = await Promise.all([
+            database
+                .select({ total: sql<number>`SUM(CAST(${addEmployee.amountPackage} AS REAL))`.mapWith(Number) })
+                .from(addEmployee)
+                .where(eq(addEmployee.isActive, true)),
+
+            database
+                .select({ total: sql<number>`SUM(CAST(${addHospitalEmployee.amountPackage} AS REAL))`.mapWith(Number) })
+                .from(addHospitalEmployee)
+                .where(eq(addHospitalEmployee.isActive, true)),
+
+            database
+                .select({ total: sql<number>`SUM(CAST(${WestranceEmployee.amountPackage} AS REAL))`.mapWith(Number) })
+                .from(WestranceEmployee)
+                .where(eq(WestranceEmployee.isActive, true))
+        ]);
+
+        const totalAvailableBenefits = Number(regularBenefits[0]?.total || 0) + Number(hospitalBenefits[0]?.total || 0) + Number(westranceBenefits[0]?.total || 0);
+
+        // Calculate average utilization rate
+        let averageUtilizationRate = 0;
+        if (totalAvailableBenefits > 0) {
+            averageUtilizationRate = (totalBenefitsUtilized / totalAvailableBenefits) * 100;
+        }
+
+        // Format the currency (assuming GHS)
+        const formatCurrency = (amount: number) => {
+            return `₵ ${amount.toLocaleString()}`;
+        };
+
+        return res.status(200).json({
+            message: "Statistics retrieved successfully",
+            statistics: {
+                totalEmployeesCovered: totalEmployeesCovered.count.toLocaleString(),
+                totalMedicalCovered: totalMedicalCovered.count.toLocaleString(),
+                totalBenefitsUtilized: formatCurrency(totalBenefitsUtilized),
+                averageUtilizationRate: `${averageUtilizationRate.toFixed(2)}%`
+            },
+            rawStatistics: {
+                totalEmployeesCovered: totalEmployeesCovered.count,
+                totalMedicalCovered: totalMedicalCovered.count,
+                totalBenefitsUtilized: totalBenefitsUtilized,
+                averageUtilizationRate: averageUtilizationRate
+            }
+        });
+
+    } catch (error) {
+        console.error("Failed to fetch reports analytics statistics:", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+

@@ -67,6 +67,7 @@ export const SearchPatientById = async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Internal server error" });
     }
 };
+
 // export const addHospitalEmployeeController = async (req: AuthenticatedRequest, res: Response) => {
 //     try {
 //         const {
@@ -1185,34 +1186,51 @@ export const deleteInvoice = async (req: AuthenticatedRequest, res: Response) =>
     }
 };
 
-export const downloadInvoice = async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        const { id } = req.params
+// export const downloadInvoice = async (req: AuthenticatedRequest, res: Response) => {
+//     try {
+//         const { id } = req.params
 
-        const invoice = await database.query.addEmployeeInvoice.findFirst({
-            where: (fields, { eq }) => eq(fields.id, id),
-        })
+//         const invoice = await database.query.addEmployeeInvoice.findFirst({
+//             where: (fields, { eq }) => eq(fields.id, id),
+//         })
 
-        if (!invoice) {
-            return res.status(404).json({ message: "Invoice Not Found" })
-        }
+//         if (!invoice) {
+//             return res.status(404).json({ message: "Invoice Not Found" })
+//         }
 
-        return res.status(200).json({
-            invoice
-        })
-    } catch (error) {
-        console.error("Error generating invoice PDF:", error);
-        res.status(500).json({ error: "Something went wrong while generating invoice" });
-    }
-}
+//         return res.status(200).json({
+//             invoice
+//         })
+//     } catch (error) {
+//         console.error("Error generating invoice PDF:", error);
+//         res.status(500).json({ error: "Something went wrong while generating invoice" });
+//     }
+// }
 
 export const getMonthlyPatientVisits = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const user = req.user;
         if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-        const company = await database.query.companyregister.findFirst({
-            where: (fields, { eq }) => eq(fields.companyId, user.userId),
+        let company;
+        let companyId = user.userId;
+
+        // If user is Hospital Employee, get their company data
+        if (user.role === "Hospital Employee") {
+            const [employeeData] = await database
+                .select({ companyUserId: addHospitalEmployee.companyUserId })
+                .from(addHospitalEmployee)
+                .where(eq(addHospitalEmployee.userId, user.userId));
+
+            if (!employeeData) {
+                return res.status(404).json({ error: "Employee not found" });
+            }
+
+            companyId = employeeData.companyUserId;
+        }
+
+        company = await database.query.companyregister.findFirst({
+            where: (fields, { eq }) => eq(fields.companyId, companyId),
         });
 
         if (!company || (company.companyType !== "Hospital" && company.companyType !== "Pharmacy")) {
@@ -1228,7 +1246,7 @@ export const getMonthlyPatientVisits = async (req: AuthenticatedRequest, res: Re
         FROM "add_invoice"
         WHERE
           EXTRACT(YEAR FROM "submit_date"::timestamp) = ${currentYear}
-          AND "company_id" = ${user.userId}
+          AND "company_id" = ${companyId}
         GROUP BY month
         ORDER BY month ASC
       `);

@@ -25,7 +25,20 @@ export const verifyTokenAdmin = (req: AuthenticatedRequestAdmin, res: Response, 
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const payload = verifyJwt<{ id: string; email: string; role: string }>(token);
+  let payload = verifyJwt<{ id: string; email: string; role: string }>(token);
+  
+  if (!payload || !payload.id) {
+    const userPayload = verifyJwt<{ userId: string; email: string; role: string }>(token);
+    if (userPayload && userPayload.userId && userPayload.role === "Westrance Employee") {
+      req.admin = {
+        id: userPayload.userId,
+        email: userPayload.email,
+        role: userPayload.role,
+      };
+      return next();
+    }
+  }
+
   if (!payload || !payload.id) {
     return res.status(401).json({ error: "Invalid or expired token" });
   }

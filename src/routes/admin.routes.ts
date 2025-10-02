@@ -1,4 +1,4 @@
-import { ActiveDeactiveCompany, ActiveDeactiveWestranceEmployee, addWestranceEmployeeController, addWestranceEmployeeRoleManagement, adminlogincontroller, adminlogoutcontroller, deleteCompany, deleteHospitalPharmacy, deleteWestranceEmployee, editWestranceEmployee, getAdminDetail, getAllInvoices, getAllTicket, getCompany, getCompanyDetails, getEmployeeDetails, getHospitalEmployeeDetails, getHospitalPharmacy, getHospitalPharmacyDetails, getTicketById, getWestranceEmployees, getWestranceEmployeesWithDependents, MostRecentInvoiceByAdmin, MostRecentRegisterCompanyAdmin, RemoveTicketRequest, ReportsAnalytics, updateAdminDetail, updateTicketStatus, getAdminNotifications, updateNotificationStatus, markAllNotificationsAsRead, deleteNotification, adminDashboardStats } from "@/controllers/admin.controller";
+import { ActiveDeactiveCompany, ActiveDeactiveWestranceEmployee, addWestranceEmployeeController, addWestranceEmployeeRoleManagement, adminlogincontroller, adminlogoutcontroller, deleteCompany, deleteHospitalPharmacy, deleteWestranceEmployee, editWestranceEmployee, getAdminDetail, getAllInvoices, getAllTicket, getCompany, getCompanyDetails, getEmployeeDetails, getHospitalEmployeeDetails, getHospitalPharmacy, getHospitalPharmacyDetails, getTicketById, getWestranceEmployees, getWestranceEmployeesWithDependents, MostRecentInvoiceByAdmin, MostRecentRegisterCompanyAdmin, RemoveTicketRequest, ReportsAnalytics, updateAdminDetail, updateTicketStatus, getAdminNotifications, updateNotificationStatus, markAllNotificationsAsRead, deleteNotification, adminDashboardStats, monthlyWestranceUsageAnalytics, getReportsAnalyticsStatistics, getWestranceDepartment } from "@/controllers/admin.controller";
 import { verifyTokenAdmin } from "@/middlewares/admin.middleware";
 import { Router } from "express";
 
@@ -35,6 +35,10 @@ adminRoute.post("/add-EmployeeRoles", verifyTokenAdmin, addWestranceEmployeeRole
 adminRoute.get("/get-adminDetail", verifyTokenAdmin, getAdminDetail)
 adminRoute.put("/update-adminDetail", verifyTokenAdmin, updateAdminDetail)
 
+// department routes
+adminRoute.get("/department", verifyTokenAdmin, getWestranceDepartment)
+
+
 // ticket routes
 adminRoute.get("/getAllTickets", verifyTokenAdmin, getAllTicket)
 adminRoute.get("/getTicket/:companyId", verifyTokenAdmin, getTicketById)
@@ -49,4 +53,6 @@ adminRoute.delete("/notifications/:notificationId", verifyTokenAdmin, deleteNoti
 
 // admin dashboardStats routes
 adminRoute.get("/stats", verifyTokenAdmin, adminDashboardStats)
+adminRoute.get("/monthly-westrance-usage-analytics", verifyTokenAdmin, monthlyWestranceUsageAnalytics)
+adminRoute.get("/reports-analytics-statistics", verifyTokenAdmin, getReportsAnalyticsStatistics)
 export { adminRoute }

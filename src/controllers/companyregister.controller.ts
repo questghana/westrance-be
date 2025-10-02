@@ -1,5 +1,5 @@
 import { database } from "@/configs/connection.config";
-import { companyregister, users, account, addEmployee, addDependents, addEmployeeInvoice, addHospitalEmployee } from "@/schema/schema";
+import { companyregister, users, account, addEmployee, addDependents, addEmployeeInvoice, addHospitalEmployee, companyNotifications } from "@/schema/schema";
 import { logger } from "@/utils/logger.util";
 import { Request, Response } from "express";
 import { eq, sql, or } from "drizzle-orm";
@@ -642,6 +642,101 @@ export const getInvoiceByCompany = async (req: AuthenticatedRequest, res: Respon
         });
     } catch (error) {
         console.error("Failed to fetch invoices", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+// ================= Company Notifications ================= //
+export const getCompanyNotifications = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const companyId = req.user?.userId;
+        if (!companyId) return res.status(401).json({ error: "Unauthorized" });
+
+        const notificationsList = await database
+            .select()
+            .from(companyNotifications)
+            .where(eq(companyNotifications.recipientCompanyId, companyId))
+            .orderBy(sql`"created_at" DESC`)
+            .limit(10);
+
+        const unread = await database
+            .select({ count: sql<number>`count(*)`.as("count") })
+            .from(companyNotifications)
+            .where(sql`${companyNotifications.recipientCompanyId} = ${companyId} AND ${companyNotifications.isRead} = false`);
+
+        return res.status(200).json({
+            notifications: notificationsList,
+            unreadCount: unread[0]?.count || 0,
+        });
+    } catch (error) {
+        console.error("Failed to fetch company notifications:", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+export const updateCompanyNotificationStatus = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const companyId = req.user?.userId;
+        if (!companyId) return res.status(401).json({ error: "Unauthorized" });
+        const { notificationId } = req.params;
+        const { isRead } = req.body;
+
+        if (typeof isRead !== 'boolean') {
+            return res.status(400).json({ error: "Invalid 'isRead' status provided" });
+        }
+
+        const [updated] = await database
+            .update(companyNotifications)
+            .set({ isRead, updatedAt: new Date() })
+            .where(sql`${companyNotifications.id} = ${notificationId} AND ${companyNotifications.recipientCompanyId} = ${companyId}`)
+            .returning();
+
+        if (!updated) {
+            return res.status(404).json({ error: "Notification not found or not authorized" });
+        }
+
+        return res.status(200).json({ message: "Notification status updated successfully" });
+    } catch (error) {
+        console.error("Failed to update company notification status:", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+export const markAllCompanyNotificationsAsRead = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const companyId = req.user?.userId;
+        if (!companyId) return res.status(401).json({ error: "Unauthorized" });
+
+        await database
+            .update(companyNotifications)
+            .set({ isRead: true, updatedAt: new Date() })
+            .where(eq(companyNotifications.recipientCompanyId, companyId));
+
+        return res.status(200).json({ message: "All notifications marked as read" });
+    } catch (error) {
+        console.error("Failed to mark all company notifications as read:", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+export const deleteCompanyNotification = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const companyId = req.user?.userId;
+        if (!companyId) return res.status(401).json({ error: "Unauthorized" });
+        const { notificationId } = req.params;
+
+        const [deleted] = await database
+            .delete(companyNotifications)
+            .where(sql`${companyNotifications.id} = ${notificationId} AND ${companyNotifications.recipientCompanyId} = ${companyId}`)
+            .returning();
+
+        if (!deleted) {
+            return res.status(404).json({ error: "Notification not found or not authorized" });
+        }
+
+        return res.status(200).json({ message: "Notification deleted successfully" });
+    } catch (error) {
+        console.error("Failed to delete company notification:", error);
         return res.status(500).json({ error: "Something went wrong" });
     }
 };
