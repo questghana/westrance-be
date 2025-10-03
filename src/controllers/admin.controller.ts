@@ -44,7 +44,6 @@ export const adminlogincontroller = async (req: Request, res: Response) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            domain: process.env.NODE_ENV === "production" ? new URL(process.env.FRONTEND_DOMAIN as string).hostname : undefined,
             path: "/",
             maxAge: 1000 * 60 * 60 * 24,
         };
