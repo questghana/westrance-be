@@ -6,6 +6,7 @@ import generateEmployeeId from "@/utils/generate.employeeid";
 import { generateBetterAuthPasswordHash } from "@/utils/password-hash.util";
 import { createId } from "@paralleldrive/cuid2";
 import { and, or, eq, ilike, sql, inArray } from "drizzle-orm";
+import { startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { Request, Response } from "express";
 
 
@@ -1215,7 +1216,6 @@ export const getMonthlyPatientVisits = async (req: AuthenticatedRequest, res: Re
         let company;
         let companyId = user.userId;
 
-        // If user is Hospital Employee, get their company data
         if (user.role === "Hospital Employee") {
             const [employeeData] = await database
                 .select({ companyUserId: addHospitalEmployee.companyUserId })
@@ -1237,28 +1237,50 @@ export const getMonthlyPatientVisits = async (req: AuthenticatedRequest, res: Re
             return res.status(403).json({ message: "Only Hospital or Pharmacy can view patient visit analytics." });
         }
 
-        const currentYear = new Date().getFullYear();
+        const fromParam = req.query.from as string | undefined;
+        const toParam = req.query.to as string | undefined;
 
-        const monthlyVisits = await database.execute(sql`
-        SELECT
-          EXTRACT(MONTH FROM "submit_date"::timestamp)::int AS month,
-          COUNT(*)::int AS visits
-        FROM "add_invoice"
-        WHERE
-          EXTRACT(YEAR FROM "submit_date"::timestamp) = ${currentYear}
-          AND "company_id" = ${companyId}
-        GROUP BY month
-        ORDER BY month ASC
-      `);
+        const buildRangeMonths = (fromDate: Date, toDate: Date) => {
+            const months: { start: Date; end: Date; label: string }[] = [];
+            let current = startOfMonth(fromDate);
+            const last = endOfMonth(toDate);
+            while (current <= last) {
+                months.push({
+                    start: startOfMonth(current),
+                    end: endOfMonth(current),
+                    label: current.toLocaleString('default', { month: 'long' })
+                });
+                current = startOfMonth(subMonths(endOfMonth(current), -1));
+            }
+            return months;
+        };
 
-        const result = Array.from({ length: 12 }, (_, i) => {
-            const monthNum = i + 1;
-            const monthData = monthlyVisits.rows.find((row: any) => row.month === monthNum);
-            return {
-                month: new Date(currentYear, i).toLocaleString("en-US", { month: "long" }),
-                visits: monthData ? Number(monthData.visits) : 0,
-            };
-        });
+        const result: { month: string; visits: number }[] = [];
+
+        if (fromParam && toParam) {
+            const from = new Date(fromParam);
+            const to = new Date(toParam);
+            const months = buildRangeMonths(from, to);
+            for (const m of months) {
+                const [countRow] = await database
+                    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+                    .from(addEmployeeInvoice)
+                    .where(sql`${addEmployeeInvoice.companyId} = ${companyId} AND ${addEmployeeInvoice.SubmittedDate} BETWEEN ${m.start.toISOString()} AND ${m.end.toISOString()}`);
+                result.push({ month: m.label, visits: countRow?.count || 0 });
+            }
+        } else {
+            for (let i = 11; i >= 0; i--) {
+                const date = subMonths(new Date(), i);
+                const start = startOfMonth(date);
+                const end = endOfMonth(date);
+                const monthName = date.toLocaleString('default', { month: 'long' });
+                const [countRow] = await database
+                    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+                    .from(addEmployeeInvoice)
+                    .where(sql`${addEmployeeInvoice.companyId} = ${companyId} AND ${addEmployeeInvoice.SubmittedDate} BETWEEN ${start.toISOString()} AND ${end.toISOString()}`);
+                result.push({ month: monthName, visits: countRow?.count || 0 });
+            }
+        }
 
         return res.status(200).json({ data: result });
     } catch (error: any) {

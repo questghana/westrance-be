@@ -3,6 +3,7 @@ import { companyregister, users, account, addEmployee, addDependents, addEmploye
 import { logger } from "@/utils/logger.util";
 import { Request, Response } from "express";
 import { eq, sql, or } from "drizzle-orm";
+import { startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { createId } from "@paralleldrive/cuid2";
 import { generateBetterAuthPasswordHash } from "@/utils/password-hash.util";
 import { AuthenticatedRequest } from "@/middlewares/auth.middleware";
@@ -746,44 +747,67 @@ export const getCompanyAnalytics = async (req: AuthenticatedRequest, res: Respon
         const userId = req.user?.userId;
         if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-        const monthlyAnalytics = await database
-            .select({
-                month: sql<string>`TO_CHAR(${addEmployee.startingDate}, 'Month')`,
-                totalEmployees: sql<number>`COUNT(DISTINCT ${addEmployee.employeeId})`.as('totalEmployees'),
-                employeesWithDependents: sql<number>`COUNT(DISTINCT ${addEmployee.employeeId}) FILTER (WHERE ${addDependents.dependentId} IS NOT NULL)`.as('employeesWithDependents'),
-            })
-            .from(addEmployee)
-            .leftJoin(addDependents, eq(addEmployee.employeeId, addDependents.employeeId))
-            .where(eq(addEmployee.companyUserId, userId))
-            .groupBy(sql`TO_CHAR(${addEmployee.startingDate}, 'Month')`)
-            .orderBy(sql`MIN(${addEmployee.startingDate})`);
+        const fromParam = req.query.from as string | undefined;
+        const toParam = req.query.to as string | undefined;
 
-        const result = [
-            { month: "January", totalEmployees: 0, employeesWithDependents: 0 },
-            { month: "February", totalEmployees: 0, employeesWithDependents: 0 },
-            { month: "March", totalEmployees: 0, employeesWithDependents: 0 },
-            { month: "April", totalEmployees: 0, employeesWithDependents: 0 },
-            { month: "May", totalEmployees: 0, employeesWithDependents: 0 },
-            { month: "June", totalEmployees: 0, employeesWithDependents: 0 },
-            { month: "July", totalEmployees: 0, employeesWithDependents: 0 },
-            { month: "August", totalEmployees: 0, employeesWithDependents: 0 },
-            { month: "September", totalEmployees: 0, employeesWithDependents: 0 },
-            { month: "October", totalEmployees: 0, employeesWithDependents: 0 },
-            { month: "November", totalEmployees: 0, employeesWithDependents: 0 },
-            { month: "December", totalEmployees: 0, employeesWithDependents: 0 },
-        ];
-
-        monthlyAnalytics.forEach(data => {
-            const monthIndex = result.findIndex(m => m.month === data.month);
-            if (monthIndex !== -1) {
-                result[monthIndex].totalEmployees = data.totalEmployees;
-                result[monthIndex].employeesWithDependents = data.employeesWithDependents;
+        const buildRangeMonths = (fromDate: Date, toDate: Date) => {
+            const months: { start: Date; end: Date; label: string }[] = [];
+            let current = startOfMonth(fromDate);
+            const last = endOfMonth(toDate);
+            while (current <= last) {
+                months.push({
+                    start: startOfMonth(current),
+                    end: endOfMonth(current),
+                    label: current.toLocaleString('default', { month: 'long' })
+                });
+                current = startOfMonth(subMonths(endOfMonth(current), -1));
             }
-        });
+            return months;
+        };
 
-        return res.status(200).json({
-            data: result
-        });
+        const result: { month: string; totalEmployees: number; employeesWithDependents: number }[] = [];
+
+        if (fromParam && toParam) {
+            const from = new Date(fromParam);
+            const to = new Date(toParam);
+            const months = buildRangeMonths(from, to);
+            for (const m of months) {
+                const [totalEmployees] = await database
+                    .select({ count: sql<number>`count(DISTINCT ${addEmployee.employeeId})`.mapWith(Number) })
+                    .from(addEmployee)
+                    .where(sql`${addEmployee.companyUserId} = ${userId} AND ${addEmployee.startingDate} BETWEEN ${m.start.toISOString()} AND ${m.end.toISOString()}`);
+
+                const [withDeps] = await database
+                    .select({ count: sql<number>`count(DISTINCT ${addEmployee.employeeId})`.mapWith(Number) })
+                    .from(addEmployee)
+                    .leftJoin(addDependents, eq(addEmployee.employeeId, addDependents.employeeId))
+                    .where(sql`${addEmployee.companyUserId} = ${userId} AND ${addEmployee.startingDate} BETWEEN ${m.start.toISOString()} AND ${m.end.toISOString()} AND ${addDependents.dependentId} IS NOT NULL`);
+
+                result.push({ month: m.label, totalEmployees: totalEmployees?.count || 0, employeesWithDependents: withDeps?.count || 0 });
+            }
+        } else {
+            for (let i = 11; i >= 0; i--) {
+                const date = subMonths(new Date(), i);
+                const start = startOfMonth(date);
+                const end = endOfMonth(date);
+                const monthName = date.toLocaleString('default', { month: 'long' });
+
+                const [totalEmployees] = await database
+                    .select({ count: sql<number>`count(DISTINCT ${addEmployee.employeeId})`.mapWith(Number) })
+                    .from(addEmployee)
+                    .where(sql`${addEmployee.companyUserId} = ${userId} AND ${addEmployee.startingDate} BETWEEN ${start.toISOString()} AND ${end.toISOString()}`);
+
+                const [withDeps] = await database
+                    .select({ count: sql<number>`count(DISTINCT ${addEmployee.employeeId})`.mapWith(Number) })
+                    .from(addEmployee)
+                    .leftJoin(addDependents, eq(addEmployee.employeeId, addDependents.employeeId))
+                    .where(sql`${addEmployee.companyUserId} = ${userId} AND ${addEmployee.startingDate} BETWEEN ${start.toISOString()} AND ${end.toISOString()} AND ${addDependents.dependentId} IS NOT NULL`);
+
+                result.push({ month: monthName, totalEmployees: totalEmployees?.count || 0, employeesWithDependents: withDeps?.count || 0 });
+            }
+        }
+
+        return res.status(200).json({ data: result });
     } catch (error) {
         console.error("Failed to fetch company analytics", error);
         return res.status(500).json({ error: "Something went wrong" });
