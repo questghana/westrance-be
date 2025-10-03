@@ -672,7 +672,7 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             companyUserId: adminId,
             employeeId,
             firstName,
-            middleName, 
+            middleName,
             lastName,
             emailAddress: email,
             registrationNumber: companyContact,
@@ -1552,27 +1552,60 @@ export const monthlyWestranceUsageAnalytics = async (req: AuthenticatedRequestAd
         const adminId = req.admin?.id
         if (!adminId) return res.status(401).json({ error: "Unauthorized" })
 
-        const monthlyUsage = [];
-        for (let i = 11; i >= 0; i--) {
-            const date = subMonths(new Date(), i);
-            const start = startOfMonth(date);
-            const end = endOfMonth(date);
-            const monthName = date.toLocaleString('default', { month: 'long' });
+        const fromParam = req.query.from as string | undefined;
+        const toParam = req.query.to as string | undefined;
 
-            const [countResult] = await database
-                .select({ count: sql<number>`count(*)`.as("count") })
-                .from(companyregister)
-                .where(
-                    and(
-                        eq(companyregister.isActive, true),
-                        sql`${companyregister.createdAt} BETWEEN ${start.toISOString()} AND ${end.toISOString()}`
-                    )
-                );
-            monthlyUsage.push({
-                month: monthName,
-                desktop: countResult.count,
-                mobile: 0
-            });
+        const buildRangeMonths = (fromDate: Date, toDate: Date) => {
+            const months: { start: Date; end: Date; label: string }[] = [];
+            let current = new Date(startOfMonth(fromDate));
+            const last = new Date(endOfMonth(toDate));
+            while (current <= last) {
+                months.push({
+                    start: startOfMonth(current),
+                    end: endOfMonth(current),
+                    label: current.toLocaleString('default', { month: 'long' })
+                });
+                current = startOfMonth(subMonths(endOfMonth(current), -1)); // add 1 month
+            }
+            return months;
+        }
+
+        const monthlyUsage = [] as { month: string; desktop: number; mobile: number }[];
+
+        if (fromParam && toParam) {
+            const from = new Date(fromParam);
+            const to = new Date(toParam);
+            const months = buildRangeMonths(from, to);
+            for (const m of months) {
+                const [countResult] = await database
+                    .select({ count: sql<number>`count(*)`.as("count") })
+                    .from(companyregister)
+                    .where(
+                        and(
+                            ne(companyregister.companyId, "COMP-001"),
+                            sql`${companyregister.createdAt} BETWEEN ${m.start.toISOString()} AND ${m.end.toISOString()}`
+                        )
+                    );
+                monthlyUsage.push({ month: m.label, desktop: countResult.count, mobile: 0 });
+            }
+        } else {
+            for (let i = 11; i >= 0; i--) {
+                const date = subMonths(new Date(), i);
+                const start = startOfMonth(date);
+                const end = endOfMonth(date);
+                const monthName = date.toLocaleString('default', { month: 'long' });
+
+                const [countResult] = await database
+                    .select({ count: sql<number>`count(*)`.as("count") })
+                    .from(companyregister)
+                    .where(
+                        and(
+                            ne(companyregister.companyId, "COMP-001"),
+                            sql`${companyregister.createdAt} BETWEEN ${start.toISOString()} AND ${end.toISOString()}`
+                        )
+                    );
+                monthlyUsage.push({ month: monthName, desktop: countResult.count, mobile: 0 });
+            }
         }
 
         return res.status(200).json({
@@ -1592,48 +1625,27 @@ export const getReportsAnalyticsStatistics = async (req: AuthenticatedRequestAdm
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        // Get total employees covered (all active employees from all three types)
-        const [regularEmployees, hospitalEmployees, westranceEmployees] = await Promise.all([
-            database
-                .select({ count: sql<number>`count(DISTINCT ${addEmployee.employeeId})` })
-                .from(addEmployee)
-                .where(eq(addEmployee.isActive, true)),
+        // Compute totals based on invoices
+        const [coveredByInvoice] = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(addEmployeeInvoice);
 
-            database
-                .select({ count: sql<number>`count(DISTINCT ${addHospitalEmployee.employeeId})` })
-                .from(addHospitalEmployee)
-                .where(eq(addHospitalEmployee.isActive, true)),
-
-            database
-                .select({ count: sql<number>`count(DISTINCT ${WestranceEmployee.employeeId})` })
-                .from(WestranceEmployee)
-                .where(eq(WestranceEmployee.isActive, true))
-        ]);
+        const [medicalCoveredByInvoice] = await database
+            .select({ count: sql<number>`count(*)` })
+            .from(addEmployeeInvoice)
+            .where(sql`(${addEmployeeInvoice.BenefitUsed} ILIKE '%OPD%'
+				OR ${addEmployeeInvoice.BenefitUsed} ILIKE '%In-Patient%'
+				OR ${addEmployeeInvoice.BenefitUsed} ILIKE '%Medicines%'
+				OR ${addEmployeeInvoice.BenefitUsed} ILIKE '%Diagnostic%'
+				OR ${addEmployeeInvoice.BenefitUsed} ILIKE '%Dental%'
+				OR ${addEmployeeInvoice.BenefitUsed} ILIKE '%Vision%')`);
 
         const totalEmployeesCovered = {
-            count: Number(regularEmployees[0]?.count || 0) + Number(hospitalEmployees[0]?.count || 0) + Number(westranceEmployees[0]?.count || 0)
+            count: Number(coveredByInvoice?.count || 0)
         };
 
-        // Get total medical covered (count of employees with medical benefits from all types)
-        const [regularMedical, hospitalMedical, westranceMedical] = await Promise.all([
-            database
-                .select({ count: sql<number>`count(*)` })
-                .from(addEmployee)
-                .where(sql`${addEmployee.benefits} LIKE '%Medical%' AND ${addEmployee.isActive} = true`),
-
-            database
-                .select({ count: sql<number>`count(*)` })
-                .from(addHospitalEmployee)
-                .where(sql`${addHospitalEmployee.benefits} LIKE '%Medical%' AND ${addHospitalEmployee.isActive} = true`),
-
-            database
-                .select({ count: sql<number>`count(*)` })
-                .from(WestranceEmployee)
-                .where(sql`${WestranceEmployee.benefits} LIKE '%Medical%' AND ${WestranceEmployee.isActive} = true`)
-        ]);
-
         const totalMedicalCovered = {
-            count: Number(regularMedical[0]?.count || 0) + Number(hospitalMedical[0]?.count || 0) + Number(westranceMedical[0]?.count || 0)
+            count: Number(medicalCoveredByInvoice?.count || 0)
         };
 
         // Get total benefits utilized (sum of all invoice amounts)
@@ -1695,4 +1707,42 @@ export const getReportsAnalyticsStatistics = async (req: AuthenticatedRequestAdm
         return res.status(500).json({ error: "Something went wrong" });
     }
 };
+
+
+export const getTopCompaniesBySpend = async (req: AuthenticatedRequestAdmin, res: Response) => {
+	try {
+		const adminId = req.admin?.id;
+		if (!adminId) {
+			return res.status(401).json({ error: "Unauthorized" });
+		}
+
+		const limit = parseInt(req.query.limit as string) || 5;
+
+		const topCompanies = await database
+			.select({
+				companyId: companyregister.companyId,
+				companyName: companyregister.companyName,
+				companyType: companyregister.companyType,
+				totalSpend: sql<number>`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`.mapWith(Number),
+			})
+			.from(addEmployeeInvoice)
+			.leftJoin(
+				companyregister,
+				eq(addEmployeeInvoice.employerCompanyId, companyregister.companyId)
+			)
+			.groupBy(
+				addEmployeeInvoice.employerCompanyId,
+				companyregister.companyId,
+				companyregister.companyName,
+				companyregister.companyType,
+			)
+			.orderBy(desc(sql`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`))
+			.limit(limit);
+
+		return res.status(200).json({ topCompanies });
+	} catch (error) {
+		console.error("Failed to fetch top companies by spend:", error);
+		return res.status(500).json({ error: "Something went wrong" });
+	}
+}
 
