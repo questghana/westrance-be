@@ -42,9 +42,11 @@ export const adminlogincontroller = async (req: Request, res: Response) => {
         const token = generateJwt({ id: admin.id, role: admin.role, email: admin.email }, '1d');
         const cookieOptions: CookieOptions = {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production" ? true : false,
+            secure: process.env.NODE_ENV === "production",
             sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            maxAge: 1000 * 60 * 60 * 24, // 1 day    
+            domain: process.env.NODE_ENV === "production" ? new URL(process.env.FRONTEND_DOMAIN as string).hostname : undefined,
+            path: "/",
+            maxAge: 1000 * 60 * 60 * 24,
         };
         res.cookie('token', token, cookieOptions);
         const { password: _password, ...adminWithoutPass } = admin;

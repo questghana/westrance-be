@@ -32,9 +32,17 @@ const httpServer = createServer(app);
 const port = Number(process.env.PORT) || 3000;
 // const sessionMiddleware = session(sessionOptions);
 const isProduction = app.get("env") === "production";
+// behind proxies (Railway/Render/Vercel) so secure cookies work
+app.set("trust proxy", 1);
+
+const allowedOrigins = [
+  process.env.FRONTEND_DOMAIN,
+  "http://localhost:4000",
+  "https://westrance-fe.vercel.app",
+].filter(Boolean) as string[];
 
 const corsOptions: CorsOptions = {
-  origin: ["http://localhost:4000", "https://westrance-fe.vercel.app"], 
+  origin: allowedOrigins,
   credentials: true,
 };
 // console.log(process.env.FRONTEND_DOMAIN)
