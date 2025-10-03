@@ -175,46 +175,46 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
     // Determine role if missing
     let role = user[0].role;
     if (!role || role === 'User') {
-  const company = await database
-    .select()
-    .from(companyregister)
-    .where(eq(companyregister.administrativeEmail, email))
-    .limit(1);
+      const company = await database
+        .select()
+        .from(companyregister)
+        .where(eq(companyregister.administrativeEmail, email))
+        .limit(1);
 
-  const employee = await database
-    .select()
-    .from(addEmployee)
-    .where(eq(addEmployee.emailAddress, email))
-    .limit(1);
+      const employee = await database
+        .select()
+        .from(addEmployee)
+        .where(eq(addEmployee.emailAddress, email))
+        .limit(1);
 
-  const hospitalEmployee = await database
-    .select()
-    .from(addHospitalEmployee)
-    .where(eq(addHospitalEmployee.emailAddress, email))
-    .limit(1);
+      const hospitalEmployee = await database
+        .select()
+        .from(addHospitalEmployee)
+        .where(eq(addHospitalEmployee.emailAddress, email))
+        .limit(1);
 
-  const westranceEmployee = await database
-    .select()
-    .from(WestranceEmployee)
-    .where(eq(WestranceEmployee.emailAddress, email))
-    .limit(1);
+      const westranceEmployee = await database
+        .select()
+        .from(WestranceEmployee)
+        .where(eq(WestranceEmployee.emailAddress, email))
+        .limit(1);
 
-  if (company.length > 0) {
-    role = "CompanyAdmin";
-  } else if (hospitalEmployee.length > 0) {
-    role = "Hospital Employee";
-  } else if (westranceEmployee.length > 0) {
-    role = "Westrance Employee";
-  } else if (employee.length > 0) {
-    role = "Employee";
-  } else {
-    role = "User";
-  }
+      if (company.length > 0) {
+        role = "CompanyAdmin";
+      } else if (hospitalEmployee.length > 0) {
+        role = "Hospital Employee";
+      } else if (westranceEmployee.length > 0) {
+        role = "Westrance Employee";
+      } else if (employee.length > 0) {
+        role = "Employee";
+      } else {
+        role = "User";
+      }
 
-  await database.update(users)
-    .set({ role })
-    .where(eq(users.id, userId));
-}
+      await database.update(users)
+        .set({ role })
+        .where(eq(users.id, userId));
+    }
 
     // Password check (assumes Better-Auth style hash stored in `account`)
     const accountRecord = await database
@@ -335,9 +335,9 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
         data: {
           token,
           user: { ...user[0], role },
-          employee: westranceEmployee[0]   
+          employee: westranceEmployee[0]
         }
-        })
+      })
     }
 
 
@@ -458,7 +458,12 @@ export const resetPassword = async (req: Request, res: Response) => {
 
 export const logout = async (_req: Request, res: Response) => {
   try {
-    res.clearCookie('token');
+    const cookieOptions: CookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production" ? true : false,
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    };
+    res.clearCookie("token", cookieOptions);
     return res.status(200).json({ success: true, message: "Logged out successfully" });
   } catch (error) {
     console.error("Logout error:", error);
