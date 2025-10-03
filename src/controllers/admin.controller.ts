@@ -42,10 +42,9 @@ export const adminlogincontroller = async (req: Request, res: Response) => {
         const token = generateJwt({ id: admin.id, role: admin.role, email: admin.email }, '1d');
         const cookieOptions: CookieOptions = {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
+            secure: process.env.NODE_ENV === "production" ? true : false,
             sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            path: "/",
-            maxAge: 1000 * 60 * 60 * 24,
+            maxAge: 1000 * 60 * 60 * 24, // 1 day    
         };
         res.cookie('token', token, cookieOptions);
         const { password: _password, ...adminWithoutPass } = admin;
@@ -673,7 +672,7 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             companyUserId: adminId,
             employeeId,
             firstName,
-            middleName,
+            middleName, 
             lastName,
             emailAddress: email,
             registrationNumber: companyContact,
@@ -1590,21 +1589,21 @@ export const monthlyWestranceUsageAnalytics = async (req: AuthenticatedRequestAd
                 monthlyUsage.push({ month: m.label, desktop: countResult.count, mobile: 0 });
             }
         } else {
-            for (let i = 11; i >= 0; i--) {
-                const date = subMonths(new Date(), i);
-                const start = startOfMonth(date);
-                const end = endOfMonth(date);
-                const monthName = date.toLocaleString('default', { month: 'long' });
+        for (let i = 11; i >= 0; i--) {
+            const date = subMonths(new Date(), i);
+            const start = startOfMonth(date);
+            const end = endOfMonth(date);
+            const monthName = date.toLocaleString('default', { month: 'long' });
 
-                const [countResult] = await database
-                    .select({ count: sql<number>`count(*)`.as("count") })
-                    .from(companyregister)
-                    .where(
-                        and(
+            const [countResult] = await database
+                .select({ count: sql<number>`count(*)`.as("count") })
+                .from(companyregister)
+                .where(
+                    and(
                             ne(companyregister.companyId, "COMP-001"),
-                            sql`${companyregister.createdAt} BETWEEN ${start.toISOString()} AND ${end.toISOString()}`
-                        )
-                    );
+                        sql`${companyregister.createdAt} BETWEEN ${start.toISOString()} AND ${end.toISOString()}`
+                    )
+                );
                 monthlyUsage.push({ month: monthName, desktop: countResult.count, mobile: 0 });
             }
         }

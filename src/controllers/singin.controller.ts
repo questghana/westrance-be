@@ -234,10 +234,9 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
     const token = generateJwt({ userId: userId, role, email }, '1d');
     const cookieOptions: CookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production" ? true : false,
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      path: "/",
-      maxAge: 1000 * 60 * 60 * 24,
+      maxAge: 1000 * 60 * 60 * 24, // 1 day    
     };
     res.cookie('token', token, cookieOptions);
 
