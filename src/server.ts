@@ -46,9 +46,26 @@ const corsOptions: CorsOptions = {
   credentials: true,
 };
 // console.log(process.env.FRONTEND_DOMAIN)
-const io = new Server(httpServer, {
-  cors: corsOptions,
+// CORS must be applied before any routes/static/helmet for preflight to work reliably
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
+// Explicit headers to be extra-safe on some hosts
+app.use((req, res, next) => {
+  const origin = req.headers.origin as string | undefined;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Vary", "Origin");
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(204);
+    }
+  }
+  next();
 });
+
+const io = new Server(httpServer, { cors: corsOptions });
 
 swagger(app);
 // prepareProductionStance({ isProduction, app, sessionOptions });
@@ -60,7 +77,6 @@ app.use(express.static("public"));
 // io.engine.use(sessionMiddleware);
 app.use(assignSocketToReqIO(io));
 app.use(express.static("dist"));
-app.use(cors(corsOptions));
 app.use(cookieParser());
 // io.use(authorizeUser);
 
