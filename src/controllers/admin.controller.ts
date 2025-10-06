@@ -61,7 +61,12 @@ export const adminlogincontroller = async (req: Request, res: Response) => {
 
 export const adminlogoutcontroller = async (_req: Request, res: Response) => {
     try {
-        res.clearCookie("token")
+        const cookieOptions: CookieOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production" ? true : false,
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        };
+        res.clearCookie("token", cookieOptions);
         return res.status(200).json({
             success: true,
             message: "Admin Logout Successfully"
@@ -672,7 +677,7 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             companyUserId: adminId,
             employeeId,
             firstName,
-            middleName, 
+            middleName,
             lastName,
             emailAddress: email,
             registrationNumber: companyContact,
@@ -1589,21 +1594,21 @@ export const monthlyWestranceUsageAnalytics = async (req: AuthenticatedRequestAd
                 monthlyUsage.push({ month: m.label, desktop: countResult.count, mobile: 0 });
             }
         } else {
-        for (let i = 11; i >= 0; i--) {
-            const date = subMonths(new Date(), i);
-            const start = startOfMonth(date);
-            const end = endOfMonth(date);
-            const monthName = date.toLocaleString('default', { month: 'long' });
+            for (let i = 11; i >= 0; i--) {
+                const date = subMonths(new Date(), i);
+                const start = startOfMonth(date);
+                const end = endOfMonth(date);
+                const monthName = date.toLocaleString('default', { month: 'long' });
 
-            const [countResult] = await database
-                .select({ count: sql<number>`count(*)`.as("count") })
-                .from(companyregister)
-                .where(
-                    and(
+                const [countResult] = await database
+                    .select({ count: sql<number>`count(*)`.as("count") })
+                    .from(companyregister)
+                    .where(
+                        and(
                             ne(companyregister.companyId, "COMP-001"),
-                        sql`${companyregister.createdAt} BETWEEN ${start.toISOString()} AND ${end.toISOString()}`
-                    )
-                );
+                            sql`${companyregister.createdAt} BETWEEN ${start.toISOString()} AND ${end.toISOString()}`
+                        )
+                    );
                 monthlyUsage.push({ month: monthName, desktop: countResult.count, mobile: 0 });
             }
         }
@@ -1710,39 +1715,39 @@ export const getReportsAnalyticsStatistics = async (req: AuthenticatedRequestAdm
 
 
 export const getTopCompaniesBySpend = async (req: AuthenticatedRequestAdmin, res: Response) => {
-	try {
-		const adminId = req.admin?.id;
-		if (!adminId) {
-			return res.status(401).json({ error: "Unauthorized" });
-		}
+    try {
+        const adminId = req.admin?.id;
+        if (!adminId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
 
-		const limit = parseInt(req.query.limit as string) || 5;
+        const limit = parseInt(req.query.limit as string) || 5;
 
-		const topCompanies = await database
-			.select({
-				companyId: companyregister.companyId,
-				companyName: companyregister.companyName,
-				companyType: companyregister.companyType,
-				totalSpend: sql<number>`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`.mapWith(Number),
-			})
-			.from(addEmployeeInvoice)
-			.leftJoin(
-				companyregister,
-				eq(addEmployeeInvoice.employerCompanyId, companyregister.companyId)
-			)
-			.groupBy(
-				addEmployeeInvoice.employerCompanyId,
-				companyregister.companyId,
-				companyregister.companyName,
-				companyregister.companyType,
-			)
-			.orderBy(desc(sql`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`))
-			.limit(limit);
+        const topCompanies = await database
+            .select({
+                companyId: companyregister.companyId,
+                companyName: companyregister.companyName,
+                companyType: companyregister.companyType,
+                totalSpend: sql<number>`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`.mapWith(Number),
+            })
+            .from(addEmployeeInvoice)
+            .leftJoin(
+                companyregister,
+                eq(addEmployeeInvoice.employerCompanyId, companyregister.companyId)
+            )
+            .groupBy(
+                addEmployeeInvoice.employerCompanyId,
+                companyregister.companyId,
+                companyregister.companyName,
+                companyregister.companyType,
+            )
+            .orderBy(desc(sql`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`))
+            .limit(limit);
 
-		return res.status(200).json({ topCompanies });
-	} catch (error) {
-		console.error("Failed to fetch top companies by spend:", error);
-		return res.status(500).json({ error: "Something went wrong" });
-	}
+        return res.status(200).json({ topCompanies });
+    } catch (error) {
+        console.error("Failed to fetch top companies by spend:", error);
+        return res.status(500).json({ error: "Something went wrong" });
+    }
 }
 
