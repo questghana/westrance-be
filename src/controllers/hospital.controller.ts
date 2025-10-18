@@ -69,170 +69,6 @@ export const SearchPatientById = async (req: Request, res: Response) => {
     }
 };
 
-// export const addHospitalEmployeeController = async (req: AuthenticatedRequest, res: Response) => {
-//     try {
-//         const {
-//             firstName,
-//             middleName,
-//             lastName,
-//             email,
-//             companyContact,
-//             startingDate,
-//             duration,
-//             amount,
-//             benefits,
-//             password,
-//             confirmPassword,
-//             dependents,
-//             profilePhoto
-//         } = req.body
-//         if (!firstName || !lastName || !email || !companyContact || !startingDate || !duration || !amount || !benefits || !password || !confirmPassword) {
-//             return res.status(400).json({ error: "Missing required fileds" })
-//         }
-
-//         if (password !== confirmPassword) {
-//             return res.status(400).json({ error: "Password do not match" })
-//         }
-
-
-//         let uploadedImageUrl: string | null = null;
-//         if (profilePhoto) {
-//             const uploadRes = await cloudinary.uploader.upload(profilePhoto, {
-//                 folder: "Hospital_Employees_Profiles",
-//                 transformation: [{ width: 300, height: 300, crop: "fill" }],
-//             });
-//             uploadedImageUrl = uploadRes.secure_url;
-//         }
-
-//         const existinguser = await database
-//             .select({
-//                 id: users.id,
-//                 name: users.name,
-//                 email: users.email,
-//                 role: users.role,
-//                 emailVerified: users.emailVerified,
-//                 image: users.image,
-//                 createdAt: users.createdAt,
-//                 updatedAt: users.updatedAt
-//             })
-//             .from(users)
-//             .where(eq(users.email, email))
-//             .limit(1)
-
-//         let userId: string;
-
-//         if (existinguser.length > 0) {
-//             // User exists, use existing user ID
-//             userId = existinguser[0].id;
-
-//             // Update the existing user's role to Employee if needed
-//             if (existinguser[0].role !== "Hospital Employee") {
-//                 await database
-//                     .update(users)
-//                     .set({ role: "Hospital Employee" })
-//                     .where(eq(users.id, userId));
-//             }
-//         } else {
-//             // Create new user WITHOUT password - Better-Auth will handle password management
-//             const fullName = middleName ? `${firstName} ${middleName} ${lastName}` : `${firstName} ${lastName}`;
-
-//             userId = createId();
-
-//             // Create user WITHOUT password - Better-Auth will handle this
-//             await database.insert(users).values({
-//                 id: userId,
-//                 name: fullName,
-//                 email,
-//                 // password: null, // Don't store password - Better-Auth handles this
-//                 role: "Hospital Employee",
-//                 emailVerified: false,
-//                 image: uploadedImageUrl || null,
-//             });
-
-//             // Generate proper password hash for Better-Auth
-//             const hashedPassword = await generateBetterAuthPasswordHash(password);
-
-//             // Create account entry for Better-Auth with proper password hash
-//             await database.insert(account).values({
-//                 id: createId(),
-//                 accountId: email,
-//                 providerId: "credential",
-//                 userId: userId,
-//                 password: hashedPassword, // Store properly hashed password
-//                 createdAt: new Date(),
-//                 updatedAt: new Date(),
-//             });
-//         }
-
-//         const existingEmployee = await database
-//             .select()
-//             .from(addHospitalEmployee)
-//             .where(eq(addHospitalEmployee.emailAddress, email))
-//             .limit(1);
-
-//         if (existingEmployee.length > 0) {
-//             return res.status(400).json({ error: "Hospital Employee with this email already exists" });
-//         }
-
-//         const employeeId = generateEmployeeId();
-//         const hashedPassword = await generateBetterAuthPasswordHash(password);
-//         const insertedHospitalEmployess = await database.insert(addHospitalEmployee).values({
-//             id: createId(),
-//             userId,
-//             companyUserId: req.user?.userId!,
-//             employeeId,
-//             firstName,
-//             middleName,
-//             lastName,
-//             emailAddress: email,
-//             registrationNumber: companyContact,
-//             startingDate: new Date(startingDate),
-//             duration,
-//             amountPackage: amount,
-//             benefits,
-//             createPassword: hashedPassword,
-//             profileImage: uploadedImageUrl || null,
-//             dependents,
-//             role: "Hospital Employee",
-//         }).returning();
-
-//         return res.status(200).json({
-//             message: "Hospital Employee added successfully",
-//             data: {
-//                 employee: insertedHospitalEmployess[0]
-//             },
-//         });
-//     } catch (error) {
-//         console.error("Error adding hospital employee:", error);
-//         return res.status(500).json({ message: "Internal server error" });
-//     }
-// }
-
-
-// export const getHospitalEmployees = async (req: AuthenticatedRequest, res: Response) => {
-//     try {
-//         const userId = req.user?.userId;
-
-//         if (!userId) {
-//             return res.status(401).json({ error: "Unauthorized" });
-//         }
-
-
-//         const employees = await database
-//             .select()
-//             .from(addHospitalEmployee)
-//             .where(eq(addHospitalEmployee.companyUserId, userId));
-
-//         return res.status(200).json({
-//             employees,
-//             count: employees.length
-//         });
-//     } catch (error) {
-//         console.error("Failed to fetch employees", error);
-//         return res.status(500).json({ error: "Something went wrong" });
-//     }
-// }
-
 export const addHospitalEmployeeController = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const {
@@ -263,7 +99,6 @@ export const addHospitalEmployeeController = async (req: AuthenticatedRequest, r
             return res.status(400).json({ error: "Passwords do not match" });
         }
 
-        // ✅ Upload image if provided
         let uploadedImageUrl: string | null = null;
         if (profilePhoto) {
             const uploadRes = await cloudinary.uploader.upload(profilePhoto, {
@@ -315,7 +150,6 @@ export const addHospitalEmployeeController = async (req: AuthenticatedRequest, r
                 image: uploadedImageUrl || null,
             });
 
-            // Generate password hash for Better-Auth
             const hashedPassword = await generateBetterAuthPasswordHash(password);
 
             await database.insert(account).values({
@@ -354,7 +188,6 @@ export const addHospitalEmployeeController = async (req: AuthenticatedRequest, r
             companyUserId = employeeData.companyUserId;
         }
 
-        // ✅ Insert employee
         const employeeId = generateEmployeeId();
         const hashedPassword = await generateBetterAuthPasswordHash(password);
 
@@ -517,7 +350,6 @@ export const editHospitalEmployee = async (req: AuthenticatedRequest, res: Respo
             profilePhoto
         } = req.body
 
-        // console.log(req.body)
         if (!employeeId) {
             return res.status(400).json({ error: "Employee ID is required" });
         }
@@ -538,7 +370,6 @@ export const editHospitalEmployee = async (req: AuthenticatedRequest, res: Respo
             const isBase64 = profilePhoto.startsWith("data:image");
 
             if (isBase64) {
-                // Remove old image if it exists
                 if (prevImgUrl) {
                     const parts = prevImgUrl.split('/');
                     const publicIdWithExtension = parts[parts.length - 1];
@@ -546,7 +377,6 @@ export const editHospitalEmployee = async (req: AuthenticatedRequest, res: Respo
                     await cloudinary.uploader.destroy(publicId);
                 }
 
-                // Upload new image
                 const uploadResponse = await cloudinary.uploader.upload(profilePhoto, {
                     folder: 'Hospital_Employees_Profiles',
                     transformation: [{ width: 300, height: 300, crop: "fill" }],
@@ -554,7 +384,6 @@ export const editHospitalEmployee = async (req: AuthenticatedRequest, res: Respo
 
                 profileImg = uploadResponse.secure_url;
             } else {
-                // Image is already a Cloudinary URL, use as-is
                 profileImg = profilePhoto;
             }
         }
@@ -675,7 +504,6 @@ export const addHospitalDependentController = async (req: Request, res: Response
 
         const allowedDependents = hospitalemployee ? Number(hospitalemployee.dependents ?? 0) : 0;
 
-        // ✅ Step 2: Get current dependents of this employee
         const existingDependents = await database
             .select()
             .from(addDependents)
@@ -683,7 +511,6 @@ export const addHospitalDependentController = async (req: Request, res: Response
 
         const currentDependentCount = existingDependents.length;
 
-        // ✅ Step 3: Validation
         if (allowedDependents === 0) {
             return res.status(400).json({ error: "No dependents allowed for this employee." });
         }
@@ -703,7 +530,6 @@ export const addHospitalDependentController = async (req: Request, res: Response
         }
 
 
-        // ✅ Step 4: Insert
         await database.insert(addHospitalDependents).values({
             firstName: FirstName,
             middleName: MiddleName || null,
@@ -927,7 +753,6 @@ export const getPatientByNameAndId = async (req: AuthenticatedRequest, res: Resp
 
         const allPatients: any[] = [];
 
-        // Combine employees and their dependents
         employee.forEach((emp) => {
             allPatients.push({
                 ...emp,
@@ -1154,7 +979,6 @@ export const getInvoiceByHospital = async (req: AuthenticatedRequest, res: Respo
             .offset(offset)
             .limit(limit);
 
-        // Total count
         const totalInvoices = await database
             .select({ count: sql<number>`count(*)` })
             .from(addEmployeeInvoice)
@@ -1186,27 +1010,6 @@ export const deleteInvoice = async (req: AuthenticatedRequest, res: Response) =>
         return res.status(500).json({ error: "Something went wrong" });
     }
 };
-
-// export const downloadInvoice = async (req: AuthenticatedRequest, res: Response) => {
-//     try {
-//         const { id } = req.params
-
-//         const invoice = await database.query.addEmployeeInvoice.findFirst({
-//             where: (fields, { eq }) => eq(fields.id, id),
-//         })
-
-//         if (!invoice) {
-//             return res.status(404).json({ message: "Invoice Not Found" })
-//         }
-
-//         return res.status(200).json({
-//             invoice
-//         })
-//     } catch (error) {
-//         console.error("Error generating invoice PDF:", error);
-//         res.status(500).json({ error: "Something went wrong while generating invoice" });
-//     }
-// }
 
 export const getMonthlyPatientVisits = async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -1296,7 +1099,6 @@ export const getHospitalDashboardStats = async (req: AuthenticatedRequest, res: 
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        // Total Verified Beneficiaries (Employees + Dependents)
         const totalEmployees = await database.select({ count: sql<number>`count(*)` }).from(addHospitalEmployee).where(eq(addHospitalEmployee.companyUserId, userId));
         const totalDependents = await database
             .select({ count: sql<number>`count(*)` })
@@ -1306,10 +1108,8 @@ export const getHospitalDashboardStats = async (req: AuthenticatedRequest, res: 
 
         const totalVerifiedBeneficiaries = Number(totalEmployees[0]?.count || 0) + Number(totalDependents[0]?.count || 0);
 
-        // Bills Submitted
         const billsSubmitted = await database.select({ count: sql<number>`count(*)` }).from(addEmployeeInvoice).where(eq(addEmployeeInvoice.companyId, userId));
 
-        // Bills Awaiting Payment (Assuming RemainingBalance > 0)
         const billsAwaitingPayment = await database
             .select({ count: sql<number>`count(*)` })
             .from(addEmployeeInvoice)

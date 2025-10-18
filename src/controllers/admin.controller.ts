@@ -300,7 +300,6 @@ export const deleteCompany = async (req: AuthenticatedRequestAdmin, res: Respons
 
         const { companyId } = req.params;
 
-        // 1. Get company details (for account & user deletion later)
         const [company] = await database
             .select()
             .from(companyregister)
@@ -310,45 +309,37 @@ export const deleteCompany = async (req: AuthenticatedRequestAdmin, res: Respons
             return res.status(404).json({ error: "Company not found" });
         }
 
-        // 2. Get all employees of this company
         const employees = await database
             .select()
             .from(addEmployee)
             .where(eq(addEmployee.companyUserId, companyId));
 
         for (const emp of employees) {
-            // 2.1 Delete dependents
             await database
                 .delete(addDependents)
                 .where(eq(addDependents.employeeId, emp.employeeId));
 
-            // 2.2 Delete employee's account
             await database
                 .delete(account)
-                .where(eq(account.accountId, emp.emailAddress)); // ya accountId mapping
+                .where(eq(account.accountId, emp.emailAddress));
 
-            // 2.3 Delete employee's user record
             await database
                 .delete(users)
                 .where(eq(users.email, emp.emailAddress));
         }
 
-        // 3. Delete employees
         await database
             .delete(addEmployee)
             .where(eq(addEmployee.companyUserId, companyId));
 
-        // 4. Delete company record
         await database
             .delete(companyregister)
             .where(eq(companyregister.companyId, companyId));
 
-        // 5. Delete company's account
         await database
             .delete(account)
             .where(eq(account.accountId, company.administrativeEmail)); // ya company ke liye unique id
 
-        // 6. Delete company's user record
         await database
             .delete(users)
             .where(eq(users.email, company.administrativeEmail));
@@ -489,7 +480,6 @@ export const deleteHospitalPharmacy = async (req: AuthenticatedRequestAdmin, res
 
         const { companyId } = req.params;
 
-        // 1. Get company details (for account & user deletion later)
         const [company] = await database
             .select()
             .from(companyregister)
@@ -499,45 +489,37 @@ export const deleteHospitalPharmacy = async (req: AuthenticatedRequestAdmin, res
             return res.status(404).json({ error: "Company not found" });
         }
 
-        // 2. Get all employees of this company
         const employees = await database
             .select()
             .from(addHospitalEmployee)
             .where(eq(addHospitalEmployee.companyUserId, companyId));
 
         for (const emp of employees) {
-            // 2.1 Delete dependents
             await database
                 .delete(addHospitalDependents)
                 .where(eq(addHospitalDependents.employeeId, emp.employeeId));
 
-            // 2.2 Delete employee's account
             await database
                 .delete(account)
-                .where(eq(account.accountId, emp.emailAddress)); // ya accountId mapping
+                .where(eq(account.accountId, emp.emailAddress)); 
 
-            // 2.3 Delete employee's user record
             await database
                 .delete(users)
                 .where(eq(users.email, emp.emailAddress));
         }
 
-        // 3. Delete employees
         await database
             .delete(addHospitalEmployee)
             .where(eq(addHospitalEmployee.companyUserId, companyId));
 
-        // 4. Delete company record
         await database
             .delete(companyregister)
             .where(eq(companyregister.companyId, companyId));
 
-        // 5. Delete company's account
         await database
             .delete(account)
-            .where(eq(account.accountId, company.administrativeEmail)); // ya company ke liye unique id
+            .where(eq(account.accountId, company.administrativeEmail)); 
 
-        // 6. Delete company's user record
         await database
             .delete(users)
             .where(eq(users.email, company.administrativeEmail));
@@ -598,7 +580,6 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             uploadedImageUrl = uploadRes.secure_url;
         }
 
-        // Check if user already exists
         const existingUser = await database
             .select({
                 id: users.id,
@@ -617,10 +598,8 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
         let userId: string;
 
         if (existingUser.length > 0) {
-            // User exists, use existing user ID
             userId = existingUser[0].id;
 
-            // Update the existing user's role to Employee if needed
             if (existingUser[0].role !== "Westrance Employee") {
                 await database
                     .update(users)
@@ -628,12 +607,10 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
                     .where(eq(users.id, userId));
             }
         } else {
-            // Create new user WITHOUT password - Better-Auth will handle password management
             const fullName = middleName ? `${firstName} ${middleName} ${lastName}` : `${firstName} ${lastName}`;
 
             userId = createId();
 
-            // Create user WITHOUT password - Better-Auth will handle this
             await database.insert(users).values({
                 id: userId,
                 name: fullName,
@@ -643,22 +620,19 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
                 image: uploadedImageUrl || null,
             });
 
-            // Generate proper password hash for Better-Auth
             const hashedPassword = await generateBetterAuthPasswordHash(password);
 
-            // Create account entry for Better-Auth with proper password hash
             await database.insert(account).values({
                 id: createId(),
                 accountId: email,
                 providerId: "credential",
                 userId: userId,
-                password: hashedPassword, // Store properly hashed password
+                password: hashedPassword,
                 createdAt: new Date(),
                 updatedAt: new Date(),
             });
         }
 
-        // Check if employee already exists
         const existingEmployee = await database
             .select()
             .from(WestranceEmployee)
@@ -710,7 +684,6 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
 export const getWestranceEmployees = async (req: AuthenticatedRequestAdmin, res: Response) => {
     try {
         const adminId = req.admin?.id;
-        // const adminRole = req.admin?.role;
 
         if (!adminId) {
             return res.status(401).json({ error: "Unauthorized" });
@@ -794,7 +767,6 @@ export const editWestranceEmployee = async (req: AuthenticatedRequestAdmin, res:
             profilePhoto
         } = req.body
 
-        // console.log(req.body)
         if (!employeeId) {
             return res.status(400).json({ error: "Employee ID is required" });
         }
@@ -815,7 +787,6 @@ export const editWestranceEmployee = async (req: AuthenticatedRequestAdmin, res:
             const isBase64 = profilePhoto.startsWith("data:image");
 
             if (isBase64) {
-                // Remove old image if it exists
                 if (prevImgUrl) {
                     const parts = prevImgUrl.split('/');
                     const publicIdWithExtension = parts[parts.length - 1];
@@ -823,7 +794,6 @@ export const editWestranceEmployee = async (req: AuthenticatedRequestAdmin, res:
                     await cloudinary.uploader.destroy(publicId);
                 }
 
-                // Upload new image
                 const uploadResponse = await cloudinary.uploader.upload(profilePhoto, {
                     folder: 'Hospital_Employees_Profiles',
                     transformation: [{ width: 300, height: 300, crop: "fill" }],
@@ -831,7 +801,6 @@ export const editWestranceEmployee = async (req: AuthenticatedRequestAdmin, res:
 
                 profileImg = uploadResponse.secure_url;
             } else {
-                // Image is already a Cloudinary URL, use as-is
                 profileImg = profilePhoto;
             }
         }
@@ -1036,10 +1005,6 @@ export const getAllInvoices = async (req: AuthenticatedRequestAdmin, res: Respon
             .limit(limit)
             .offset(offset)
 
-        // if (!Invoices || Invoices.length === 0) {
-        //     return res.status(404).json({ message: "No invoice found" });
-        // }
-
         const total = await database
             .select({ count: sql<number>`count(*)`.as("count") })
             .from(addEmployeeInvoice)
@@ -1075,7 +1040,6 @@ export const ReportsAnalytics = async (req: AuthenticatedRequestAdmin, res: Resp
             .offset(offset)
             .limit(limit);
 
-        // Total count
         const totalInvoices = await database
             .select({ count: sql<number>`count(*)`.as("count") })
             .from(addEmployeeInvoice)
@@ -1137,7 +1101,6 @@ export const getTicketById = async (req: AuthenticatedRequestAdmin, res: Respons
         if (!adminId) return res.status(401).json({ error: "unauthorized" })
 
         const { companyId } = req.params
-        console.log(typeof companyId);
         if (!companyId || typeof companyId !== "string") {
             return res.status(404).json({ error: "CompanyId Not Found" });
         }
@@ -1189,7 +1152,6 @@ export const updateTicketStatus = async (req: AuthenticatedRequestAdmin, res: Re
             return res.status(404).json({ error: "Ticket not found" });
         }
 
-        // Create a company in-app notification about ticket status update
         const [ticket] = await database
             .select({
                 companyId: createTicket.companyId,
@@ -1517,24 +1479,20 @@ export const adminDashboardStats = async (req: AuthenticatedRequestAdmin, res: R
         if (!adminId) return res.status(401).json({ error: "Unauthorized" })
         console.log(adminId);
 
-        // total companies not admin company
         const totalCompanies = await database
             .select({ count: sql<number>`count(*)` })
             .from(companyregister)
             .where(and(ne(companyregister.companyId, "COMP-001"), eq(companyregister.isActive, true)))
 
-        // total westrance employees
         const totalWestranceEmployees = await database
             .select({ count: sql<number>`count(*)` })
             .from(WestranceEmployee)
 
-        //  total healthcare providers both hospital and pharmacy
         const totalHealthcareProviders = await database
             .select({ count: sql<number>`count(*)` })
             .from(companyregister)
             .where(or(eq(companyregister.companyType, "Hospital"), eq(companyregister.companyType, "Pharmacy")))
 
-        // total monthly claims
         const totalMonthlyClaims = await database
             .select({ count: sql<number>`count(*)` })
             .from(addEmployeeInvoice)
@@ -1570,7 +1528,7 @@ export const monthlyWestranceUsageAnalytics = async (req: AuthenticatedRequestAd
                     end: endOfMonth(current),
                     label: current.toLocaleString('default', { month: 'long' })
                 });
-                current = startOfMonth(subMonths(endOfMonth(current), -1)); // add 1 month
+                current = startOfMonth(subMonths(endOfMonth(current), -1));
             }
             return months;
         }
@@ -1630,7 +1588,6 @@ export const getReportsAnalyticsStatistics = async (req: AuthenticatedRequestAdm
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        // Compute totals based on invoices
         const [coveredByInvoice] = await database
             .select({ count: sql<number>`count(*)` })
             .from(addEmployeeInvoice);
@@ -1638,12 +1595,9 @@ export const getReportsAnalyticsStatistics = async (req: AuthenticatedRequestAdm
         const [medicalCoveredByInvoice] = await database
             .select({ count: sql<number>`count(*)` })
             .from(addEmployeeInvoice)
-            .where(sql`(${addEmployeeInvoice.BenefitUsed} ILIKE '%OPD%'
-				OR ${addEmployeeInvoice.BenefitUsed} ILIKE '%In-Patient%'
-				OR ${addEmployeeInvoice.BenefitUsed} ILIKE '%Medicines%'
-				OR ${addEmployeeInvoice.BenefitUsed} ILIKE '%Diagnostic%'
-				OR ${addEmployeeInvoice.BenefitUsed} ILIKE '%Dental%'
-				OR ${addEmployeeInvoice.BenefitUsed} ILIKE '%Vision%')`);
+            .where(sql`(${addEmployeeInvoice.BenefitUsed} ILIKE '%In-Patient%'
+				OR ${addEmployeeInvoice.BenefitUsed} ILIKE '%Out-Patient%'
+				OR ${addEmployeeInvoice.BenefitUsed} ILIKE '%Virtual Primary Care%'`);
 
         const totalEmployeesCovered = {
             count: Number(coveredByInvoice?.count || 0)
@@ -1653,14 +1607,12 @@ export const getReportsAnalyticsStatistics = async (req: AuthenticatedRequestAdm
             count: Number(medicalCoveredByInvoice?.count || 0)
         };
 
-        // Get total benefits utilized (sum of all invoice amounts)
         const totalBenefitsUtilizedResult = await database
             .select({ total: sql<number>`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`.mapWith(Number) })
             .from(addEmployeeInvoice);
 
         const totalBenefitsUtilized = totalBenefitsUtilizedResult[0]?.total || 0;
 
-        // Get total available benefits (sum of all employee amount packages from all types)
         const [regularBenefits, hospitalBenefits, westranceBenefits] = await Promise.all([
             database
                 .select({ total: sql<number>`SUM(CAST(${addEmployee.amountPackage} AS REAL))`.mapWith(Number) })
@@ -1680,13 +1632,11 @@ export const getReportsAnalyticsStatistics = async (req: AuthenticatedRequestAdm
 
         const totalAvailableBenefits = Number(regularBenefits[0]?.total || 0) + Number(hospitalBenefits[0]?.total || 0) + Number(westranceBenefits[0]?.total || 0);
 
-        // Calculate average utilization rate
         let averageUtilizationRate = 0;
         if (totalAvailableBenefits > 0) {
             averageUtilizationRate = (totalBenefitsUtilized / totalAvailableBenefits) * 100;
         }
 
-        // Format the currency (assuming GHS)
         const formatCurrency = (amount: number) => {
             return `₵ ${amount.toLocaleString()}`;
         };

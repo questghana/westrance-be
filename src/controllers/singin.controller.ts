@@ -17,128 +17,6 @@ export interface EmployeeSignInBody {
   password: string;
 }
 
-// export const employeeSignInController = async (
-//   req: Request<{}, {}, EmployeeSignInBody>,
-//   res: Response
-// ) => {
-//   try {
-//     const { email, password } = req.body;
-//     console.log("maa ka")
-
-//     if (!email || !password) {
-//       return res.status(400).json({ error: "Email and password required" });
-//     }
-
-//     const user = await database
-//       .select({
-//         id: users.id,
-//         name: users.name,
-//         email: users.email,
-//         role: users.role,
-//         emailVerified: users.emailVerified,
-//         image: users.image,
-//         createdAt: users.createdAt,
-//         updatedAt: users.updatedAt
-//       })
-//       .from(users)
-//       .where(and(
-//         eq(users.email, email),
-//         eq(users.role, "Employee")
-//       ))
-//       .limit(1) as User[];
-
-//     if (user.length === 0) {
-//       return res.status(401).json({ error: "Invalid credentials" });
-//     }
-
-//     if (!user[0].role || user[0].role === 'User') {
-//       let newRole = 'User';
-
-//       const companyCheck = await database
-//         .select()
-//         .from(companyregister)
-//         .where(eq(companyregister.administrativeEmail, email))
-//         .limit(1);
-
-//       if (companyCheck.length > 0) {
-//         newRole = 'Company';
-//       } else {
-//         const employeeCheck = await database
-//           .select()
-//           .from(addEmployee)
-//           .where(eq(addEmployee.emailAddress, email))
-//           .limit(1);
-
-//         if (employeeCheck.length > 0) {
-//           newRole = 'Employee';
-//         }
-//       }
-
-//       await database
-//         .update(users)
-//         .set({ role: newRole })
-//         .where(eq(users.id, user[0].id));
-
-//       user[0].role = newRole;
-
-//       console.log(`Updated user ${email} role to: ${newRole}`);
-//     }
-
-//     const employee = await database
-//       .select({
-//         employeeId: addEmployee.employeeId,
-//         firstName: addEmployee.firstName,
-//         lastName: addEmployee.lastName,
-//         startingDate: addEmployee.startingDate,
-//         profileImage: addEmployee.profileImage,
-//         dependents: addEmployee.dependents,
-//         amountPackage: addEmployee.amountPackage,
-//         benefits: addEmployee.benefits,
-//         registrationNumber: addEmployee.registrationNumber,
-//         emailAddress: addEmployee.emailAddress,
-
-//       })
-//       .from(addEmployee)
-//       .where(eq(addEmployee.userId, user[0].id))
-//       .limit(1);
-
-//     if (employee.length === 0) {
-//       return res.status(401).json({ error: "Employee record not found" });
-//     }
-
-
-//     console.log("User data:", user[0]);
-//     console.log("User role:", user[0].role);
-
-//     return res.status(200).json({
-//       message: "Employee authenticated successfully",
-//       data: {
-//         user: {
-//           id: user[0].id,
-//           name: user[0].name,
-//           email: user[0].email,
-//           role: user[0].role || "Employee"
-//         },
-//         employee: {
-//           employeeId: employee[0].employeeId,
-//           firstName: employee[0].firstName,
-//           lastName: employee[0].lastName,
-//           startingDate: employee[0].startingDate,
-//           profileImage: employee[0].profileImage,
-//           dependents: employee[0].dependents,
-//           amountPackage: employee[0].amountPackage,
-//           benefits: employee[0].benefits,
-//           registrationNumber: employee[0].registrationNumber,
-//           emailAddress: employee[0].emailAddress,
-//         }
-//       }
-//     } as EmployeeSignInResponse);
-
-//   } catch (error) {
-//     logger.error("Employee sign-in error:", error);
-//     return res.status(500).json({ error: "Authentication failed" });
-//   }
-// };
 config();
 const JWT_SECRET = env.JWT_SECRET;
 
@@ -150,7 +28,6 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
       return res.status(400).json({ error: "Email and password required" });
     }
 
-    // Lookup user
     const user = await database
       .select({
         id: users.id,
@@ -172,7 +49,6 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
 
     const userId = user[0].id;
 
-    // Determine role if missing
     let role = user[0].role;
     if (!role || role === 'User') {
       const company = await database
@@ -216,7 +92,6 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
         .where(eq(users.id, userId));
     }
 
-    // Password check (assumes Better-Auth style hash stored in `account`)
     const accountRecord = await database
       .select()
       .from(account)
@@ -240,7 +115,6 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
     };
     res.cookie('token', token, cookieOptions);
 
-    // Role-specific data
     if (role === "CompanyAdmin") {
       const company = await database
         .select()
@@ -341,7 +215,6 @@ export const unifiedSignInController = async (req: Request<{}, {}, { email: stri
     }
 
 
-    // Default case for fallback role
     return res.status(200).json({
       message: "User login success",
       data: {
@@ -374,7 +247,6 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: "1h" });
 
-    // const resetLink = `http://localhost:4000/resetpassword?token=${token}`;
     const resetLink = `${process.env.FRONTEND_DOMAIN}/resetpassword?token=${token}`;
 
     await sendEmail({
@@ -438,7 +310,6 @@ export const resetPassword = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "New And Confirm Not Match" })
     }
 
-    // console.log(token, Newpassword, confirmpassword)
     const decoded = jwt.verify(token, JWT_SECRET!) as { userId: string };
 
     const hashedPassword = await generateBetterAuthPasswordHash(Newpassword);
@@ -473,9 +344,7 @@ export const logout = async (_req: Request, res: Response) => {
 
 export const authme = async (req: Request, res: Response) => {
   try {
-    // console.log("Authme endpoint hit.");
     const token = req.cookies.token;
-    // console.log("Received token from cookies:", token);
     if (!token) {
       return res.status(401).json({ success: false, message: "Unauthorized - No token" });
     }
@@ -490,7 +359,7 @@ export const authme = async (req: Request, res: Response) => {
     }
 
     let company = null;
-    let employee = null; // Initialize employee as null
+    let employee = null; 
 
     if (user.role === "CompanyAdmin") {
       [company] = await database.select().from(companyregister).where(eq(companyregister.administrativeEmail, user.email));

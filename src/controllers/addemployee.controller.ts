@@ -60,7 +60,6 @@ export const addEmployeeController = async (req: AuthenticatedRequest, res: Resp
       uploadedImageUrl = uploadRes.secure_url;
     }
 
-    // Check if user already exists
     const existingUser = await database
       .select({
         id: users.id,
@@ -79,10 +78,8 @@ export const addEmployeeController = async (req: AuthenticatedRequest, res: Resp
     let userId: string;
 
     if (existingUser.length > 0) {
-      // User exists, use existing user ID
       userId = existingUser[0].id;
 
-      // Update the existing user's role to Employee if needed
       if (existingUser[0].role !== "Employee") {
         await database
           .update(users)
@@ -90,38 +87,32 @@ export const addEmployeeController = async (req: AuthenticatedRequest, res: Resp
           .where(eq(users.id, userId));
       }
     } else {
-      // Create new user WITHOUT password - Better-Auth will handle password management
       const fullName = middleName ? `${firstName} ${middleName} ${lastName}` : `${firstName} ${lastName}`;
 
       userId = createId();
 
-      // Create user WITHOUT password - Better-Auth will handle this
       await database.insert(users).values({
         id: userId,
         name: fullName,
         email,
-        // password: null, // Don't store password - Better-Auth handles this
         role: "Employee",
         emailVerified: false,
         image: uploadedImageUrl || null,
       });
 
-      // Generate proper password hash for Better-Auth
       const hashedPassword = await generateBetterAuthPasswordHash(password);
 
-      // Create account entry for Better-Auth with proper password hash
       await database.insert(account).values({
         id: createId(),
         accountId: email,
         providerId: "credential",
         userId: userId,
-        password: hashedPassword, // Store properly hashed password
+        password: hashedPassword,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
     }
 
-    // Check if employee already exists
     const existingEmployee = await database
       .select()
       .from(addEmployee)
@@ -313,7 +304,6 @@ export const addDependentController = async (req: AuthenticatedRequest, res: Res
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // ✅ Step 1: Get employee from DB
     const [employee] = await database
       .select()
       .from(addEmployee)
@@ -332,7 +322,6 @@ export const addDependentController = async (req: AuthenticatedRequest, res: Res
 
     const allowedDependents = employee ? Number(employee.dependents ?? 0) : 0;
 
-    // ✅ Step 2: Get current dependents of this employee
     const existingDependents = await database
       .select()
       .from(addDependents)
@@ -340,7 +329,6 @@ export const addDependentController = async (req: AuthenticatedRequest, res: Res
 
     const currentDependentCount = existingDependents.length;
 
-    // ✅ Step 3: Validation
     if (allowedDependents === 0) {
       return res.status(400).json({ error: "No dependents allowed for this employee." });
     }
@@ -360,7 +348,6 @@ export const addDependentController = async (req: AuthenticatedRequest, res: Res
     }
 
 
-    // ✅ Step 4: Insert
     await database.insert(addDependents).values({
       firstName: FirstName,
       middleName: MiddleName || null,
@@ -412,7 +399,6 @@ export const addWestranceDependentController = async (req: AuthenticatedRequest,
 
     const allowedDependents = westranceEmployee ? Number(westranceEmployee.dependents ?? 0) : 0;
 
-    // ✅ Step 2: Get current dependents of this employee
     const existingDependents = await database
       .select()
       .from(addWestranceDependents)
@@ -420,7 +406,6 @@ export const addWestranceDependentController = async (req: AuthenticatedRequest,
 
     const currentDependentCount = existingDependents.length;
 
-    // ✅ Step 3: Validation
     if (allowedDependents === 0) {
       return res.status(400).json({ error: "No dependents allowed for this employee." });
     }
@@ -440,7 +425,6 @@ export const addWestranceDependentController = async (req: AuthenticatedRequest,
     }
 
 
-    // ✅ Step 4: Insert
     await database.insert(addWestranceDependents).values({
       firstName: FirstName,
       middleName: MiddleName || null,

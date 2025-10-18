@@ -46,8 +46,7 @@ export const companyRegisterController = async (req: AuthenticatedRequest, res: 
             profileImage,
             termAccepted
         } = req.body
-        console.log(req.body)
-        // Generate proper password hash for Better-Auth
+
         const hashedPassword = await generateBetterAuthPasswordHash(createPassword);
 
         if (!companyName || !companyType || !registrationNumber || !numberOfEmployees || !region || !city ||
@@ -68,7 +67,6 @@ export const companyRegisterController = async (req: AuthenticatedRequest, res: 
             uploadedImageUrl = uploadResult.secure_url;
         }
 
-        // Check if user already exists
         const existingUser = await database.select({
             id: users.id,
             name: users.name,
@@ -83,10 +81,8 @@ export const companyRegisterController = async (req: AuthenticatedRequest, res: 
         let userId: string;
 
         if (existingUser.length > 0) {
-            // User exists, use existing user ID
             userId = existingUser[0].id;
 
-            // Update the existing user's role to Company if needed
             if (existingUser[0].role !== "CompanyAdmin") {
                 await database
                     .update(users)
@@ -94,10 +90,8 @@ export const companyRegisterController = async (req: AuthenticatedRequest, res: 
                     .where(eq(users.id, userId));
             }
         } else {
-            // Create new user WITHOUT password - Better-Auth will handle password management
             userId = createId();
 
-            // Create user WITHOUT password - Better-Auth will handle this
             await database.insert(users).values({
                 id: userId,
                 name: administrativeName,
@@ -108,19 +102,17 @@ export const companyRegisterController = async (req: AuthenticatedRequest, res: 
             });
 
 
-            // Create account entry for Better-Auth with proper password hash
             await database.insert(account).values({
                 id: createId(),
                 accountId: administrativeEmail,
                 providerId: "credential",
                 userId: userId,
-                password: hashedPassword, // Store properly hashed password
+                password: hashedPassword,
                 createdAt: new Date(),
                 updatedAt: new Date(),
             });
         }
 
-        // Check if company already exists
         const existingCompany = await database
             .select()
             .from(companyregister)
@@ -145,8 +137,8 @@ export const companyRegisterController = async (req: AuthenticatedRequest, res: 
             website,
             administrativeName,
             administrativeEmail,
-            createPassword: hashedPassword, // Store original password for reference only
-            confirmPassword: hashedPassword, // Store original password for reference only
+            createPassword: hashedPassword,
+            confirmPassword: hashedPassword,
             profileImage: uploadedImageUrl || null,
             termsAccepted: termAccepted,
         }).returning()
@@ -248,7 +240,6 @@ export const editEmployee = async (req: Request, res: Response) => {
             profilePhoto
         } = req.body
 
-        // console.log(req.body)
         if (!employeeId) {
             return res.status(400).json({ error: "Employee ID is required" });
         }
@@ -269,7 +260,6 @@ export const editEmployee = async (req: Request, res: Response) => {
             const isBase64 = profilePhoto.startsWith("data:image");
 
             if (isBase64) {
-                // Remove old image if it exists
                 if (prevImgUrl) {
                     const parts = prevImgUrl.split('/');
                     const publicIdWithExtension = parts[parts.length - 1];
@@ -277,7 +267,6 @@ export const editEmployee = async (req: Request, res: Response) => {
                     await cloudinary.uploader.destroy(publicId);
                 }
 
-                // Upload new image
                 const uploadResponse = await cloudinary.uploader.upload(profilePhoto, {
                     folder: 'employee_profiles',
                     transformation: [{ width: 300, height: 300, crop: "fill" }],
@@ -285,7 +274,6 @@ export const editEmployee = async (req: Request, res: Response) => {
 
                 profileImg = uploadResponse.secure_url;
             } else {
-                // Image is already a Cloudinary URL, use as-is
                 profileImg = profilePhoto;
             }
         }
@@ -321,18 +309,15 @@ export const deleteEmployee = async (req: AuthenticatedRequest, res: Response) =
         const { id } = req.params;
         if (!id) return res.status(400).json({ error: "Missing EmployeeId" });
 
-        // Step 1: Fetch dependents before deleting
         const dependents = await database
             .select()
             .from(addDependents)
             .where(eq(addDependents.employeeId, id));
 
-        // Step 2: Delete dependents
         await database
             .delete(addDependents)
             .where(eq(addDependents.employeeId, id));
 
-        // Step 3: Delete employee (and fetch for profile image)
         const employee = await database
             .delete(addEmployee)
             .where(eq(addEmployee.employeeId, id))
@@ -341,21 +326,17 @@ export const deleteEmployee = async (req: AuthenticatedRequest, res: Response) =
         if (employee.length > 0) {
             const email = employee[0].emailAddress;
 
-            // Step 3.1: Delete from account table
             await database.delete(account).where(eq(account.accountId, email));
 
-            // Step 3.2: Delete from users table
             await database.delete(users).where(eq(users.email, email));
         }
 
-        // Step 4: Delete employee image from Cloudinary
         if (employee.length > 0 && employee[0]?.profileImage) {
             const publicIdWithExtension = employee[0].profileImage.split('/').pop();
             const publicId = `employee_profiles/${publicIdWithExtension?.split('.')[0]}`;
             await cloudinary.uploader.destroy(publicId);
         }
 
-        // Step 5: Delete dependents' images from Cloudinary
         if (dependents.length > 0) {
             await Promise.all(
                 dependents.map(dep => {
@@ -421,19 +402,16 @@ export const getHospitalPharmacy = async (req: Request, res: Response) => {
             .limit(limit)
             .offset(offset);
 
-        // Total Hospital count
         const [{ hospitalCount }] = await database
             .select({ hospitalCount: sql<number>`count(*)`.mapWith(Number) })
             .from(companyregister)
             .where(eq(companyregister.companyType, "Hospital"));
 
-        // Total Pharmacy count
         const [{ pharmacyCount }] = await database
             .select({ pharmacyCount: sql<number>`count(*)`.mapWith(Number) })
             .from(companyregister)
             .where(eq(companyregister.companyType, "Pharmacy"));
 
-        // Total records (Hospital + Pharmacy)
         const total = hospitalCount + pharmacyCount;
 
         return res.status(200).json({
@@ -488,7 +466,7 @@ export const updateCompanyDetail = async (req: AuthenticatedRequest, res: Respon
             createpassword,
             profilePhoto
         } = req.body
-        console.log(req.body)
+
         if (!companyId) {
             return res.status(401).json({ error: "Unauthorized – missing companyId" });
         }
@@ -543,8 +521,6 @@ export const updateCompanyDetail = async (req: AuthenticatedRequest, res: Respon
                 website,
                 administrativeName: administrativeFullName,
                 administrativeEmail,
-                // createPassword,
-                // confirmPassword,
                 profileImage: profileImg
             })
             .where(eq(companyregister.companyId, companyId))
@@ -819,26 +795,22 @@ export const getCompanyDashboardStats = async (req: AuthenticatedRequest, res: R
         const userId = req.user?.userId;
         if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-        // Total Employees
         const employees = await database
             .select({ count: sql<number>`count(*)` })
             .from(addEmployee)
             .where(eq(addEmployee.companyUserId, userId));
 
-        // Total Employees with Dependents
         const employeesWithDependents = await database
             .select({ count: sql<number>`count(DISTINCT ${addEmployee.employeeId})` })
             .from(addEmployee)
             .leftJoin(addDependents, eq(addEmployee.employeeId, addDependents.employeeId))
             .where(sql`${addDependents.dependentId} IS NOT NULL AND ${addEmployee.companyUserId} = ${userId}`);
 
-        // Connected Hospitals
         const hospitals = await database
             .select({ count: sql<number>`count(*)` })
             .from(companyregister)
             .where(eq(companyregister.companyType, "Hospital"));
 
-        // Connected Pharmacies
         const pharmacies = await database
             .select({ count: sql<number>`count(*)` })
             .from(companyregister)
