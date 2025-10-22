@@ -119,7 +119,10 @@ export const MostRecentRegisterCompanyAdmin = async (req: AuthenticatedRequestAd
         const latestCompany = await database
             .select()
             .from(companyregister)
-            .orderBy(desc(companyregister.createdAt))
+            .where(
+                ne(companyregister.companyType, "Westrance")
+            )
+            .orderBy(desc(companyregister.createdAt));
 
         if (!latestCompany) {
             return res.status(404).json({
@@ -191,7 +194,8 @@ export const getCompany = async (req: AuthenticatedRequestAdmin, res: Response) 
                 .where(
                     and(
                         ne(companyregister.companyType, "Hospital"),
-                        ne(companyregister.companyType, "Pharmacy")
+                        ne(companyregister.companyType, "Pharmacy"),
+                        ne(companyregister.companyType, "Westrance")
                     )
                 )
                 .limit(limit)
@@ -203,7 +207,8 @@ export const getCompany = async (req: AuthenticatedRequestAdmin, res: Response) 
                 .where(
                     and(
                         ne(companyregister.companyType, "Hospital"),
-                        ne(companyregister.companyType, "Pharmacy")
+                        ne(companyregister.companyType, "Pharmacy"),
+                        ne(companyregister.companyType, "Westrance")
                     )
                 )
         ]);
@@ -501,7 +506,7 @@ export const deleteHospitalPharmacy = async (req: AuthenticatedRequestAdmin, res
 
             await database
                 .delete(account)
-                .where(eq(account.accountId, emp.emailAddress)); 
+                .where(eq(account.accountId, emp.emailAddress));
 
             await database
                 .delete(users)
@@ -518,7 +523,7 @@ export const deleteHospitalPharmacy = async (req: AuthenticatedRequestAdmin, res
 
         await database
             .delete(account)
-            .where(eq(account.accountId, company.administrativeEmail)); 
+            .where(eq(account.accountId, company.administrativeEmail));
 
         await database
             .delete(users)

@@ -35,6 +35,7 @@ export const companyRegisterController = async (req: AuthenticatedRequest, res: 
             industry,
             registrationNumber,
             numberOfEmployees,
+            phoneNumber,
             region,
             city,
             address,
@@ -49,7 +50,7 @@ export const companyRegisterController = async (req: AuthenticatedRequest, res: 
 
         const hashedPassword = await generateBetterAuthPasswordHash(createPassword);
 
-        if (!companyName || !companyType || !registrationNumber || !numberOfEmployees || !region || !city ||
+        if (!companyName || !companyType || !registrationNumber || !numberOfEmployees || !phoneNumber || !region || !city ||
             !address || !administrativeName || !administrativeEmail || !createPassword || !confirmPassword || !termAccepted) {
             return res.status(400).json({ error: "missing required fields" })
         }
@@ -131,6 +132,7 @@ export const companyRegisterController = async (req: AuthenticatedRequest, res: 
             industry,
             registrationNumber,
             numberOfEmployees,
+            phoneNumber,
             region,
             city,
             address,
@@ -457,6 +459,7 @@ export const updateCompanyDetail = async (req: AuthenticatedRequest, res: Respon
             industry,
             registrationNumber,
             numberOfEmployees,
+            phoneNumber,
             region,
             city,
             address,
@@ -515,6 +518,7 @@ export const updateCompanyDetail = async (req: AuthenticatedRequest, res: Respon
                 industry,
                 registrationNumber,
                 numberOfEmployees,
+                phoneNumber,
                 region,
                 city,
                 address,

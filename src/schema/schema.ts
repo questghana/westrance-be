@@ -98,6 +98,7 @@ export const companyregister = pgTable("Companyregister", {
   industry: varchar("industry", { length: 100 }),
   registrationNumber: varchar("registration_number", { length: 100 }).notNull(),
   numberOfEmployees: integer("number_of_employees").notNull(),
+  phoneNumber: varchar("phone_number", { length: 100 }).notNull(),
   region: varchar("region", { length: 100 }).notNull(),
   city: varchar("city", { length: 100 }).notNull(),
   address: varchar("address", { length: 100 }).notNull(),

@@ -148,6 +148,13 @@
       "when": 1759383589937,
       "tag": "0020_sharp_shriek",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1761069319770,
+      "tag": "0021_dizzy_gorgon",
+      "breakpoints": true
     }
   ]
 }

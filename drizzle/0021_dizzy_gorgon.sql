@@ -1,0 +1,1 @@
+ALTER TABLE "Companyregister" ADD COLUMN "phone_number" varchar(100) NOT NULL;
