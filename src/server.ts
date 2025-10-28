@@ -41,6 +41,7 @@ const allowedOrigins = [
   "https://app.westrance.com",
 ].filter(Boolean) as string[];
 
+
 const corsOptions: CorsOptions = {
   origin: allowedOrigins,
   credentials: true,
