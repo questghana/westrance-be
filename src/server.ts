@@ -38,7 +38,7 @@ app.set("trust proxy", 1);
 const allowedOrigins = [
   process.env.FRONTEND_DOMAIN,
   "http://localhost:4000",
-  "https://www.westrance.com",
+  "https://app.westrance.com",
 ].filter(Boolean) as string[];
 
 const corsOptions: CorsOptions = {
