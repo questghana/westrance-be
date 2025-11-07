@@ -260,7 +260,6 @@ export const forgotPassword = async (req: Request, res: Response) => {
                style="max-width:150px;margin-bottom:10px;" />
         </div>
     
-        <!-- Main Content -->
         <div style="background:#fff;padding:30px;border:1px solid #eee;border-radius:8px;">
           <h3 style="color:#0A51BA;margin-top:0;">Password Reset Request</h3>
           <p>Hello <strong>${user.name || "User"}</strong>,</p>
