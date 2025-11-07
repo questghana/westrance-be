@@ -6,7 +6,7 @@ import generateEmployeeId from "@/utils/generate.employeeid";
 import { generateBetterAuthPasswordHash } from "@/utils/password-hash.util";
 import { createId } from "@paralleldrive/cuid2";
 import { and, or, eq, ilike, sql, inArray } from "drizzle-orm";
-import { startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, addMonths, addYears } from "date-fns";
 import { Request, Response } from "express";
 
 
@@ -854,6 +854,23 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
             return res.status(404).json({ message: "Employee or Dependent not found" });
         }
         let targetEntity = parentEmployee || entity;
+
+        // Check package expiration
+        const startingDate = new Date(targetEntity.startingDate);
+        const duration = targetEntity.duration;
+        let expirationDate = new Date(startingDate);
+
+        if (duration.includes("Month")) {
+            const monthsToAdd = parseInt(duration.replace("Month", ""));
+            expirationDate = addMonths(expirationDate, monthsToAdd);
+        } else if (duration.includes("Year")) {
+            const yearsToAdd = parseInt(duration.replace("Year", ""));
+            expirationDate = addYears(expirationDate, yearsToAdd);
+        }
+
+        if (new Date() > expirationDate) {
+            return res.status(400).json({ message: "Employee/Dependent's package has expired" });
+        }
 
         let finalEmployerCompanyId: string;
         if (entityType === "westranceemployee" || (entityType === "dependent" && parentEmployee && (parentEmployee as any).role === "Westrance Employee")) {

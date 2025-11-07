@@ -259,20 +259,47 @@ export const updateEmployeeController = async (req: AuthenticatedRequest, res: R
         .where(eq(account.userId, userId));
     }
 
-    await database.update(addEmployee)
-      .set({
-        firstName: FullName,
-        emailAddress: Emailaddress,
-        profileImage: profileImg,
-        updatedAt: new Date(),
-        ...(updatedPassword && { createPassword: updatedPassword })
-      })
-      .where(eq(addEmployee.userId, userId));
+    const userRole = req.user?.role;
+
+    if (userRole === "Employee") {
+      await database.update(addEmployee)
+        .set({
+          firstName: FullName,
+          emailAddress: Emailaddress,
+          profileImage: profileImg,
+          updatedAt: new Date(),
+          ...(updatedPassword && { createPassword: updatedPassword })
+        })
+        .where(eq(addEmployee.userId, userId));
+    } else if (userRole === "Hospital Employee") {
+      await database.update(addHospitalEmployee)
+        .set({
+          firstName: FullName,
+          emailAddress: Emailaddress,
+          profileImage: profileImg,
+          updatedAt: new Date(),
+          ...(updatedPassword && { createPassword: updatedPassword })
+        })
+        .where(eq(addHospitalEmployee.userId, userId));
+    } else if (userRole === "Westrance Employee") {
+      await database.update(WestranceEmployee)
+        .set({
+          firstName: FullName,
+          emailAddress: Emailaddress,
+          profileImage: profileImg,
+          updatedAt: new Date(),
+          ...(updatedPassword && { createPassword: updatedPassword })
+        })
+        .where(eq(WestranceEmployee.userId, userId));
+    } else {
+      console.warn("User role not recognized for employee profile update:", userRole);
+    }
 
     await database.update(users)
       .set({
         name: FullName,
         email: Emailaddress,
+        image: profileImg,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId));
