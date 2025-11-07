@@ -247,7 +247,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: "1h" });
 
-    const resetLink = `${process.env.FRONTEND_DOMAIN}/resetpassword?token=${token}`;
+    const resetLink = `https://app.westrance.com/resetpassword?token=${token}`;
 
     await sendEmail({
       to: email,
@@ -256,7 +256,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
       <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;line-height:1.6;color:#333;">
         <!-- Header with Logo -->
         <div style="text-align:center;padding:20px 0;">
-          <img src="/Logo/logo.png" alt="Westrance Logo" 
+          <img src="https://app.westrance.com/Logo/logo.png" alt="Westrance Logo" 
                style="max-width:150px;margin-bottom:10px;" />
         </div>
     
