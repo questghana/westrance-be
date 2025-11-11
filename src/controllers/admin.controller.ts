@@ -553,14 +553,13 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             startingDate,
             duration,
             amount,
-            benefits,
             password,
             confirmPassword,
             dependents,
             profilePhoto,
         } = req.body;
 
-        if (!firstName || !lastName || !email || !companyContact || !startingDate || !duration || !amount || !benefits || !password || !confirmPassword) {
+        if (!firstName || !lastName || !email || !companyContact || !startingDate || !duration || !amount || !password || !confirmPassword) {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
@@ -650,6 +649,11 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
 
         const employeeId = generateEmployeeId();
         const hashedPassword = await generateBetterAuthPasswordHash(password);
+        const assignedBenefits = [
+            "In-Patient",
+            "Out-Patient",
+            "Virtual Primary Care",
+        ];
         const insertedEmployess = await database.insert(WestranceEmployee).values({
             id: createId(),
             userId,
@@ -663,7 +667,7 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             startingDate: new Date(startingDate),
             duration,
             amountPackage: amount,
-            benefits,
+            benefits: assignedBenefits,
             createPassword: hashedPassword,
             profileImage: uploadedImageUrl || null,
             dependents,

@@ -80,7 +80,6 @@ export const addHospitalEmployeeController = async (req: AuthenticatedRequest, r
             startingDate,
             duration,
             amount,
-            benefits,
             password,
             confirmPassword,
             dependents,
@@ -89,7 +88,7 @@ export const addHospitalEmployeeController = async (req: AuthenticatedRequest, r
 
         if (
             !firstName || !lastName || !email || !companyContact ||
-            !startingDate || !duration || !amount || !benefits ||
+            !startingDate || !duration || !amount ||
             !password || !confirmPassword
         ) {
             return res.status(400).json({ error: "Missing required fields" });
@@ -191,6 +190,12 @@ export const addHospitalEmployeeController = async (req: AuthenticatedRequest, r
         const employeeId = generateEmployeeId();
         const hashedPassword = await generateBetterAuthPasswordHash(password);
 
+        const assignedBenefits = [
+            "In-Patient",
+            "Out-Patient",
+            "Virtual Primary Care",
+        ];
+
         const insertedHospitalEmployees = await database.insert(addHospitalEmployee).values({
             id: createId(),
             userId,
@@ -204,7 +209,7 @@ export const addHospitalEmployeeController = async (req: AuthenticatedRequest, r
             startingDate: new Date(startingDate),
             duration,
             amountPackage: amount,
-            benefits,
+            benefits: assignedBenefits,
             createPassword: hashedPassword,
             profileImage: uploadedImageUrl || null,
             dependents,
