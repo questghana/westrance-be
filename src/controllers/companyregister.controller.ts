@@ -288,7 +288,8 @@ export const editEmployee = async (req: Request, res: Response) => {
             registrationNumber: companyContact,
             startingDate: new Date(startingDate),
             duration,
-            amountPackage: amount,
+            inPatientAmount: amount,
+            outPatientAmount: amount,
             benefits,
             dependents,
             createPassword: password,
@@ -592,12 +593,15 @@ export const getInvoiceByCompany = async (req: AuthenticatedRequest, res: Respon
                 companyId: addEmployeeInvoice.companyId,
                 HospitalName: addEmployeeInvoice.HospitalName,
                 PatientName: addEmployeeInvoice.PatientName,
-                Amount: addEmployeeInvoice.Amount,
-                RemainingBalance: addEmployeeInvoice.RemainingBalance,
+                inPatientInvoiceAmount: addEmployeeInvoice.inPatientInvoiceAmount,
+                outPatientInvoiceAmount: addEmployeeInvoice.outPatientInvoiceAmount,
+                inPatientRemainingBalance: addEmployeeInvoice.inPatientRemainingBalance,
+                outPatientRemainingBalance: addEmployeeInvoice.outPatientRemainingBalance,
                 BenefitUsed: addEmployeeInvoice.BenefitUsed,
+                benefitTypeUsed: addEmployeeInvoice.benefitTypeUsed,
                 SubmittedDate: addEmployeeInvoice.SubmittedDate,
-                employeeAmountPackage: addEmployee.amountPackage,
-                hospitalEmployeeAmountPackage: addHospitalEmployee.amountPackage,
+                employeeAmountPackage: addEmployee.inPatientAmount,
+                hospitalEmployeeAmountPackage: addHospitalEmployee.inPatientAmount,
             })
             .from(addEmployeeInvoice)
             .leftJoin(addEmployee, eq(addEmployeeInvoice.EmployeeId, addEmployee.employeeId))
@@ -849,14 +853,14 @@ export const getcompanyReportAnalyticsStats = async (req: AuthenticatedRequest, 
         .where(sql`${addEmployee.benefits} LIKE '%Medical%' AND ${addEmployee.companyUserId} = ${userId}`);
 
     const totalBenefitsUtilizedResult = await database
-        .select({ total: sql<number>`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`.mapWith(Number) })
+        .select({ total: sql<number>`SUM(CAST(${addEmployeeInvoice.inPatientInvoiceAmount} AS REAL))`.mapWith(Number) })
         .from(addEmployeeInvoice)
         .where(eq(addEmployeeInvoice.employerCompanyId, userId));
 
     const totalBenefitsUtilized = totalBenefitsUtilizedResult[0]?.total || 0;
 
     const totalAvailableBenefitsResult = await database
-        .select({ total: sql<number>`SUM(CAST(${addEmployee.amountPackage} AS REAL))`.mapWith(Number) })
+        .select({ total: sql<number>`SUM(CAST(${addEmployee.inPatientAmount} AS REAL))`.mapWith(Number) })
         .from(addEmployee)
         .where(eq(addEmployee.companyUserId, userId));
 

@@ -21,17 +21,17 @@ export const SearchPatientById = async (req: Request, res: Response) => {
         }
 
         const [employee] = await database
-            .select()
+            .select({ id: addEmployee.id, userId: addEmployee.userId, companyUserId: addEmployee.companyUserId, employeeId: addEmployee.employeeId, firstName: addEmployee.firstName, middleName: addEmployee.middleName, lastName: addEmployee.lastName, emailAddress: addEmployee.emailAddress, registrationNumber: addEmployee.registrationNumber, startingDate: addEmployee.startingDate, duration: addEmployee.duration, inPatientAmount: addEmployee.inPatientAmount, outPatientAmount: addEmployee.outPatientAmount, benefits: addEmployee.benefits, createPassword: addEmployee.createPassword, profileImage: addEmployee.profileImage, dependents: addEmployee.dependents, role: addEmployee.role, isActive: addEmployee.isActive })
             .from(addEmployee)
             .where(eq(addEmployee.employeeId, patientId));
 
         const [hospitalemployee] = await database
-            .select()
+            .select({ id: addHospitalEmployee.id, userId: addHospitalEmployee.userId, companyUserId: addHospitalEmployee.companyUserId, employeeId: addHospitalEmployee.employeeId, firstName: addHospitalEmployee.firstName, middleName: addHospitalEmployee.middleName, lastName: addHospitalEmployee.lastName, emailAddress: addHospitalEmployee.emailAddress, registrationNumber: addHospitalEmployee.registrationNumber, startingDate: addHospitalEmployee.startingDate, duration: addHospitalEmployee.duration, inPatientAmount: addHospitalEmployee.inPatientAmount, outPatientAmount: addHospitalEmployee.outPatientAmount, benefits: addHospitalEmployee.benefits, createPassword: addHospitalEmployee.createPassword, profileImage: addHospitalEmployee.profileImage, dependents: addHospitalEmployee.dependents, role: addHospitalEmployee.role, isActive: addHospitalEmployee.isActive })
             .from(addHospitalEmployee)
             .where(eq(addHospitalEmployee.employeeId, patientId));
 
         const [westranceEmployee] = await database
-            .select()
+            .select({ id: WestranceEmployee.id, userId: WestranceEmployee.userId, companyUserId: WestranceEmployee.companyUserId, employeeId: WestranceEmployee.employeeId, firstName: WestranceEmployee.firstName, middleName: WestranceEmployee.middleName, lastName: WestranceEmployee.lastName, emailAddress: WestranceEmployee.emailAddress, registrationNumber: WestranceEmployee.registrationNumber, startingDate: WestranceEmployee.startingDate, duration: WestranceEmployee.duration, inPatientAmount: WestranceEmployee.inPatientAmount, outPatientAmount: WestranceEmployee.outPatientAmount, benefits: WestranceEmployee.benefits, createPassword: WestranceEmployee.createPassword, profileImage: WestranceEmployee.profileImage, dependents: WestranceEmployee.dependents, role: WestranceEmployee.role, isActive: WestranceEmployee.isActive })
             .from(WestranceEmployee)
             .where(eq(WestranceEmployee.employeeId, patientId));
 
@@ -79,17 +79,19 @@ export const addHospitalEmployeeController = async (req: AuthenticatedRequest, r
             companyContact,
             startingDate,
             duration,
-            amount,
+            inPatientAmount,
+            outPatientAmount,
             password,
             confirmPassword,
             dependents,
-            profilePhoto
+            profilePhoto,
+            benefits
         } = req.body;
 
         if (
             !firstName || !lastName || !email || !companyContact ||
-            !startingDate || !duration || !amount ||
-            !password || !confirmPassword
+            !startingDate || !duration || !inPatientAmount || !outPatientAmount ||
+            !password || !confirmPassword || !benefits
         ) {
             return res.status(400).json({ error: "Missing required fields" });
         }
@@ -190,12 +192,6 @@ export const addHospitalEmployeeController = async (req: AuthenticatedRequest, r
         const employeeId = generateEmployeeId();
         const hashedPassword = await generateBetterAuthPasswordHash(password);
 
-        const assignedBenefits = [
-            "In-Patient",
-            "Out-Patient",
-            "Virtual Primary Care",
-        ];
-
         const insertedHospitalEmployees = await database.insert(addHospitalEmployee).values({
             id: createId(),
             userId,
@@ -208,8 +204,9 @@ export const addHospitalEmployeeController = async (req: AuthenticatedRequest, r
             registrationNumber: companyContact,
             startingDate: new Date(startingDate),
             duration,
-            amountPackage: amount,
-            benefits: assignedBenefits,
+            inPatientAmount,
+            outPatientAmount,
+            benefits,
             createPassword: hashedPassword,
             profileImage: uploadedImageUrl || null,
             dependents,
@@ -347,7 +344,8 @@ export const editHospitalEmployee = async (req: AuthenticatedRequest, res: Respo
             companyContact,
             startingDate,
             duration,
-            amount,
+            inPatientAmount,
+            outPatientAmount,
             benefits,
             dependents,
             password,
@@ -401,7 +399,8 @@ export const editHospitalEmployee = async (req: AuthenticatedRequest, res: Respo
             registrationNumber: companyContact,
             startingDate: new Date(startingDate),
             duration,
-            amountPackage: amount,
+            inPatientAmount,
+            outPatientAmount,
             benefits,
             dependents,
             createPassword: hashedPassword,
@@ -797,7 +796,7 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
         const user = req.user;
         if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-        const { EmployeeId, PatientName, Amount, BenefitUsed, SubmittedDate } = req.body;
+        const { EmployeeId, PatientName, inPatientInvoiceAmount, outPatientInvoiceAmount, BenefitUsed, benefitTypeUsed, SubmittedDate } = req.body;
 
         let entity: any =
             (await database.query.addEmployee.findFirst({
@@ -885,18 +884,35 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
         }
 
         // Balance calculation
-        const currentBalance = parseFloat(targetEntity.amountPackage);
-        const invoiceAmount = parseFloat(Amount);
+        let currentInPatientBalance = parseFloat(targetEntity.inPatientAmount);
+        let currentOutPatientBalance = parseFloat(targetEntity.outPatientAmount);
+        const invoiceInPatientAmount = parseFloat(inPatientInvoiceAmount || "0");
+        const invoiceOutPatientAmount = parseFloat(outPatientInvoiceAmount || "0");
 
-        if (currentBalance <= 0) {
-            return res.status(400).json({ message: "Employee/Dependent has no remaining balance" });
+        let newInPatientBalance = currentInPatientBalance;
+        let newOutPatientBalance = currentOutPatientBalance;
+
+        if (benefitTypeUsed === "In-Patient") {
+            if (currentInPatientBalance <= 0) {
+                return res.status(400).json({ message: "Employee/Dependent has no remaining In-Patient balance" });
+            }
+            if (invoiceInPatientAmount > currentInPatientBalance) {
+                return res.status(400).json({ message: "Insufficient In-Patient balance" });
+            }
+            newInPatientBalance = currentInPatientBalance - invoiceInPatientAmount;
+        } else if (benefitTypeUsed === "Out-Patient") {
+            const actualOutPatientInvoiceAmount = invoiceOutPatientAmount > 0 ? invoiceOutPatientAmount : invoiceInPatientAmount;
+
+            if (currentOutPatientBalance <= 0) {
+                return res.status(400).json({ message: "Employee/Dependent has no remaining Out-Patient balance" });
+            }
+            if (actualOutPatientInvoiceAmount > currentOutPatientBalance) {
+                return res.status(400).json({ message: "Insufficient Out-Patient balance" });
+            }
+            newOutPatientBalance = currentOutPatientBalance - actualOutPatientInvoiceAmount;
+        } else {
+            return res.status(400).json({ message: "Invalid BenefitUsed type" });
         }
-
-        if (invoiceAmount > currentBalance) {
-            return res.status(400).json({ message: "Insufficient balance" });
-        }
-
-        const newBalance = currentBalance - invoiceAmount;
 
         const employerCompany = await database.query.companyregister.findFirst({
             where: (fields, { eq }) => eq(fields.companyId, finalEmployerCompanyId),
@@ -921,11 +937,11 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
         }
 
         if (entityType === "employee") {
-            await database.update(addEmployee).set({ amountPackage: newBalance.toString() }).where(eq(addEmployee.employeeId, targetEntity.employeeId));
+            await database.update(addEmployee).set({ inPatientAmount: newInPatientBalance.toString(), outPatientAmount: newOutPatientBalance.toString() }).where(eq(addEmployee.employeeId, targetEntity.employeeId));
         } else if (entityType === "hospitalemployee") {
-            await database.update(addHospitalEmployee).set({ amountPackage: newBalance.toString() }).where(eq(addHospitalEmployee.employeeId, targetEntity.employeeId));
+            await database.update(addHospitalEmployee).set({ inPatientAmount: newInPatientBalance.toString(), outPatientAmount: newOutPatientBalance.toString() }).where(eq(addHospitalEmployee.employeeId, targetEntity.employeeId));
         } else if (entityType === "westranceemployee") {
-            await database.update(WestranceEmployee).set({ amountPackage: newBalance.toString() }).where(eq(WestranceEmployee.employeeId, targetEntity.employeeId));
+            await database.update(WestranceEmployee).set({ inPatientAmount: newInPatientBalance.toString(), outPatientAmount: newOutPatientBalance.toString() }).where(eq(WestranceEmployee.employeeId, targetEntity.employeeId));
         } else if (entityType === "dependent") {
             if ('employeeId' in targetEntity) {
                 const originalEmployee = await database.query.addEmployee.findFirst({
@@ -939,11 +955,11 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
                 });
 
                 if (originalEmployee) {
-                    await database.update(addEmployee).set({ amountPackage: newBalance.toString() }).where(eq(addEmployee.employeeId, targetEntity.employeeId));
+                    await database.update(addEmployee).set({ inPatientAmount: newInPatientBalance.toString(), outPatientAmount: newOutPatientBalance.toString() }).where(eq(addEmployee.employeeId, targetEntity.employeeId));
                 } else if (originalHospitalEmployee) {
-                    await database.update(addHospitalEmployee).set({ amountPackage: newBalance.toString() }).where(eq(addHospitalEmployee.employeeId, targetEntity.employeeId));
+                    await database.update(addHospitalEmployee).set({ inPatientAmount: newInPatientBalance.toString(), outPatientAmount: newOutPatientBalance.toString() }).where(eq(addHospitalEmployee.employeeId, targetEntity.employeeId));
                 } else if (originalWestranceEmployee) {
-                    await database.update(WestranceEmployee).set({ amountPackage: newBalance.toString() }).where(eq(WestranceEmployee.employeeId, targetEntity.employeeId));
+                    await database.update(WestranceEmployee).set({ inPatientAmount: newInPatientBalance.toString(), outPatientAmount: newOutPatientBalance.toString() }).where(eq(WestranceEmployee.employeeId, targetEntity.employeeId));
                 }
             }
         }
@@ -955,9 +971,12 @@ export const addInvoice = async (req: AuthenticatedRequest, res: Response) => {
             companyId: company.companyId,
             HospitalName: company.companyName,
             PatientName,
-            Amount,
-            RemainingBalance: newBalance.toString(),
+            inPatientInvoiceAmount: inPatientInvoiceAmount,
+            outPatientInvoiceAmount: outPatientInvoiceAmount,
+            inPatientRemainingBalance: newInPatientBalance.toString(),
+            outPatientRemainingBalance: newOutPatientBalance.toString(),
             BenefitUsed,
+            benefitTypeUsed,
             SubmittedDate: new Date(SubmittedDate),
         });
 
@@ -987,16 +1006,15 @@ export const getInvoiceByHospital = async (req: AuthenticatedRequest, res: Respo
                 companyId: addEmployeeInvoice.companyId,
                 HospitalName: addEmployeeInvoice.HospitalName,
                 PatientName: addEmployeeInvoice.PatientName,
-                Amount: addEmployeeInvoice.Amount,
-                RemainingBalance: addEmployeeInvoice.RemainingBalance,
+                inPatientInvoiceAmount: addEmployeeInvoice.inPatientInvoiceAmount,
+                outPatientInvoiceAmount: addEmployeeInvoice.outPatientInvoiceAmount,
+                inPatientRemainingBalance: addEmployeeInvoice.inPatientRemainingBalance,
+                outPatientRemainingBalance: addEmployeeInvoice.outPatientRemainingBalance,
                 BenefitUsed: addEmployeeInvoice.BenefitUsed,
+                benefitTypeUsed: addEmployeeInvoice.benefitTypeUsed,
                 SubmittedDate: addEmployeeInvoice.SubmittedDate,
-                employeeAmountPackage: addEmployee.amountPackage,
-                hospitalEmployeeAmountPackage: addHospitalEmployee.amountPackage,
             })
             .from(addEmployeeInvoice)
-            .leftJoin(addEmployee, eq(addEmployeeInvoice.EmployeeId, addEmployee.employeeId))
-            .leftJoin(addHospitalEmployee, eq(addEmployeeInvoice.EmployeeId, addHospitalEmployee.employeeId))
             .where(eq(addEmployeeInvoice.companyId, user.userId))
             .offset(offset)
             .limit(limit);
@@ -1135,7 +1153,10 @@ export const getHospitalDashboardStats = async (req: AuthenticatedRequest, res: 
         const billsAwaitingPayment = await database
             .select({ count: sql<number>`count(*)` })
             .from(addEmployeeInvoice)
-            .where(and(eq(addEmployeeInvoice.companyId, userId), sql`CAST(${addEmployeeInvoice.RemainingBalance} AS DECIMAL) > 0`));
+            .where(and(
+                eq(addEmployeeInvoice.companyId, userId),
+                sql`CAST(${addEmployeeInvoice.inPatientRemainingBalance} AS DECIMAL) > 0 OR CAST(${addEmployeeInvoice.outPatientRemainingBalance} AS DECIMAL) > 0`
+            ));
 
 
         const appointmentsToday = "0";

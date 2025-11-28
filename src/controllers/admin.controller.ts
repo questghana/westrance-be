@@ -655,7 +655,6 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             "Virtual Primary Care",
         ];
         const insertedEmployess = await database.insert(WestranceEmployee).values({
-            id: createId(),
             userId,
             companyUserId: adminId,
             employeeId,
@@ -666,7 +665,8 @@ export const addWestranceEmployeeController = async (req: AuthenticatedRequestAd
             registrationNumber: companyContact,
             startingDate: new Date(startingDate),
             duration,
-            amountPackage: amount,
+            inPatientAmount: amount,
+            outPatientAmount: amount,
             benefits: assignedBenefits,
             createPassword: hashedPassword,
             profileImage: uploadedImageUrl || null,
@@ -822,7 +822,8 @@ export const editWestranceEmployee = async (req: AuthenticatedRequestAdmin, res:
             registrationNumber: companyContact,
             startingDate: new Date(startingDate),
             duration,
-            amountPackage: amount,
+            inPatientAmount: amount,
+            outPatientAmount: amount,
             benefits,
             dependents,
             createPassword: password,
@@ -1000,9 +1001,12 @@ export const getAllInvoices = async (req: AuthenticatedRequestAdmin, res: Respon
                 companyType: companyregister.companyType,
                 HospitalName: addEmployeeInvoice.HospitalName,
                 PatientName: addEmployeeInvoice.PatientName,
-                Amount: addEmployeeInvoice.Amount,
-                RemainingBalance: addEmployeeInvoice.RemainingBalance,
+                inPatientInvoiceAmount: addEmployeeInvoice.inPatientInvoiceAmount,
+                outPatientInvoiceAmount: addEmployeeInvoice.outPatientInvoiceAmount,
+                inPatientRemainingBalance: addEmployeeInvoice.inPatientRemainingBalance,
+                outPatientRemainingBalance: addEmployeeInvoice.outPatientRemainingBalance,
                 BenefitUsed: addEmployeeInvoice.BenefitUsed,
+                benefitTypeUsed: addEmployeeInvoice.benefitTypeUsed,
                 SubmittedDate: addEmployeeInvoice.SubmittedDate,
             })
             .from(addEmployeeInvoice)
@@ -1617,24 +1621,24 @@ export const getReportsAnalyticsStatistics = async (req: AuthenticatedRequestAdm
         };
 
         const totalBenefitsUtilizedResult = await database
-            .select({ total: sql<number>`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`.mapWith(Number) })
+            .select({ total: sql<number>`SUM(CAST(${addEmployeeInvoice.inPatientInvoiceAmount} AS REAL))`.mapWith(Number) })
             .from(addEmployeeInvoice);
 
         const totalBenefitsUtilized = totalBenefitsUtilizedResult[0]?.total || 0;
 
         const [regularBenefits, hospitalBenefits, westranceBenefits] = await Promise.all([
             database
-                .select({ total: sql<number>`SUM(CAST(${addEmployee.amountPackage} AS REAL))`.mapWith(Number) })
+                .select({ total: sql<number>`SUM(CAST(${addEmployee.inPatientAmount} AS REAL))`.mapWith(Number) })
                 .from(addEmployee)
                 .where(eq(addEmployee.isActive, true)),
 
             database
-                .select({ total: sql<number>`SUM(CAST(${addHospitalEmployee.amountPackage} AS REAL))`.mapWith(Number) })
+                .select({ total: sql<number>`SUM(CAST(${addHospitalEmployee.inPatientAmount} AS REAL))`.mapWith(Number) })
                 .from(addHospitalEmployee)
                 .where(eq(addHospitalEmployee.isActive, true)),
 
             database
-                .select({ total: sql<number>`SUM(CAST(${WestranceEmployee.amountPackage} AS REAL))`.mapWith(Number) })
+                .select({ total: sql<number>`SUM(CAST(${WestranceEmployee.inPatientAmount} AS REAL))`.mapWith(Number) })
                 .from(WestranceEmployee)
                 .where(eq(WestranceEmployee.isActive, true))
         ]);
@@ -1687,7 +1691,7 @@ export const getTopCompaniesBySpend = async (req: AuthenticatedRequestAdmin, res
                 companyId: companyregister.companyId,
                 companyName: companyregister.companyName,
                 companyType: companyregister.companyType,
-                totalSpend: sql<number>`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`.mapWith(Number),
+                totalSpend: sql<number>`SUM(CAST(${addEmployeeInvoice.inPatientInvoiceAmount} AS REAL))`.mapWith(Number),
             })
             .from(addEmployeeInvoice)
             .leftJoin(
@@ -1700,7 +1704,7 @@ export const getTopCompaniesBySpend = async (req: AuthenticatedRequestAdmin, res
                 companyregister.companyName,
                 companyregister.companyType,
             )
-            .orderBy(desc(sql`SUM(CAST(${addEmployeeInvoice.Amount} AS REAL))`))
+            .orderBy(desc(sql`SUM(CAST(${addEmployeeInvoice.inPatientInvoiceAmount} AS REAL))`))
             .limit(limit);
 
         return res.status(200).json({ topCompanies });

@@ -162,6 +162,13 @@
       "when": 1762855016411,
       "tag": "0022_wet_gwen_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1764310865220,
+      "tag": "0023_watery_sleeper",
+      "breakpoints": true
     }
   ]
 }
