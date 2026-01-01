@@ -14,8 +14,14 @@
     "dbintrospect": "drizzle-kit introspect",
     "swagger": "ts-node ./src/configs/swagger.config.ts",
     "cleanup": "ts-node -r tsconfig-paths/register src/utils/cleanup-db.ts",
-    "seed:admin": "ts-node -r tsconfig-paths/register src/scripts/seedAdmin.ts",
-    "seed:company": "ts-node -r tsconfig-paths/register src/scripts/seedCompany.ts"
+    "seed:admin": "ts-node -r tsconfig-paths/register src/scripts/admins.seed.ts",
+    "seed:company": "ts-node -r tsconfig-paths/register src/scripts/seedCompany.ts",
+    "seed:users": "ts-node -r tsconfig-paths/register src/scripts/seed-users.ts",
+    "seed:employee": "ts-node -r tsconfig-paths/register src/scripts/addEmployee.seed.ts",
+    "seed:dependents": "ts-node -r tsconfig-paths/register src/scripts/dependents.seed.ts",
+    "seed:accounts": "ts-node -r tsconfig-paths/register src/scripts/accounts.seed.ts",
+    "seed:companies": "ts-node -r tsconfig-paths/register src/scripts/companies.seed.ts",
+    "seed:invoices": "ts-node -r tsconfig-paths/register src/scripts/invoices.seed.ts"
   },
   "license": "ISC",
   "devDependencies": {
