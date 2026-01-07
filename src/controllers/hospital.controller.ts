@@ -12,51 +12,152 @@ import { Request, Response } from "express";
 
 
 
+// export const SearchPatientById = async (req: Request, res: Response) => {
+//     try {
+//         const { patientId, firstName, lastName } = req.query;
+
+//         if (!patientId || typeof patientId !== "string") {
+//             return res.status(400).json({ message: "Patient ID is required" });
+//         }
+//         if (!firstName || !lastName) {
+//             return res.status(400).json({ message: "" });
+//         }
+
+
+
+//         const [employee] = await database
+//             .select({ id: addEmployee.id, userId: addEmployee.userId, companyUserId: addEmployee.companyUserId, employeeId: addEmployee.employeeId, firstName: addEmployee.firstName, middleName: addEmployee.middleName, lastName: addEmployee.lastName, emailAddress: addEmployee.emailAddress, registrationNumber: addEmployee.registrationNumber, startingDate: addEmployee.startingDate, duration: addEmployee.duration, inPatientAmount: addEmployee.inPatientAmount, outPatientAmount: addEmployee.outPatientAmount, benefits: addEmployee.benefits, createPassword: addEmployee.createPassword, profileImage: addEmployee.profileImage, dependents: addEmployee.dependents, role: addEmployee.role, isActive: addEmployee.isActive })
+//             .from(addEmployee)
+//             .where(
+//                 or(
+//                     eq(addEmployee.employeeId, patientId),
+//                     eq(addEmployee.firstName, firstName),
+//                     eq(addEmployee.lastName, lastName),
+//                 )
+//             );
+//         // eq(addEmployee.employeeId, patientId)
+//         const [hospitalemployee] = await database
+//             .select({ id: addHospitalEmployee.id, userId: addHospitalEmployee.userId, companyUserId: addHospitalEmployee.companyUserId, employeeId: addHospitalEmployee.employeeId, firstName: addHospitalEmployee.firstName, middleName: addHospitalEmployee.middleName, lastName: addHospitalEmployee.lastName, emailAddress: addHospitalEmployee.emailAddress, registrationNumber: addHospitalEmployee.registrationNumber, startingDate: addHospitalEmployee.startingDate, duration: addHospitalEmployee.duration, inPatientAmount: addHospitalEmployee.inPatientAmount, outPatientAmount: addHospitalEmployee.outPatientAmount, benefits: addHospitalEmployee.benefits, createPassword: addHospitalEmployee.createPassword, profileImage: addHospitalEmployee.profileImage, dependents: addHospitalEmployee.dependents, role: addHospitalEmployee.role, isActive: addHospitalEmployee.isActive })
+//             .from(addHospitalEmployee)
+//             .where(
+//                 or(
+//                     eq(addHospitalEmployee.employeeId, patientId),
+//                     eq(addHospitalEmployee.firstName, firstName),
+//                     eq(addHospitalEmployee.lastName, lastName),
+//                 )
+//             );
+//         // eq(addHospitalEmployee.employeeId, patientId)
+//         const [westranceEmployee] = await database
+//             .select({ id: WestranceEmployee.id, userId: WestranceEmployee.userId, companyUserId: WestranceEmployee.companyUserId, employeeId: WestranceEmployee.employeeId, firstName: WestranceEmployee.firstName, middleName: WestranceEmployee.middleName, lastName: WestranceEmployee.lastName, emailAddress: WestranceEmployee.emailAddress, registrationNumber: WestranceEmployee.registrationNumber, startingDate: WestranceEmployee.startingDate, duration: WestranceEmployee.duration, inPatientAmount: WestranceEmployee.inPatientAmount, outPatientAmount: WestranceEmployee.outPatientAmount, benefits: WestranceEmployee.benefits, createPassword: WestranceEmployee.createPassword, profileImage: WestranceEmployee.profileImage, dependents: WestranceEmployee.dependents, role: WestranceEmployee.role, isActive: WestranceEmployee.isActive })
+//             .from(WestranceEmployee)
+//             .where(
+//                 or(
+//                     eq(WestranceEmployee.employeeId, patientId),
+//                     eq(WestranceEmployee.firstName, firstName),
+//                     eq(WestranceEmployee.lastName, lastName),
+//                 )
+//             );
+//         // eq(WestranceEmployee.employeeId, patientId)
+//         let foundEmployee = employee || hospitalemployee || westranceEmployee;
+
+//         if (!foundEmployee) {
+//             return res.status(404).json({ message: "Patient not found" });
+//         }
+
+//         let dependents: any[] = [];
+//         if (employee) {
+//             dependents = await database
+//                 .select()
+//                 .from(addDependents)
+//                 .where(eq(addDependents.employeeId, patientId));
+//         } else if (hospitalemployee) {
+//             dependents = await database
+//                 .select()
+//                 .from(addHospitalDependents)
+//                 .where(eq(addHospitalDependents.employeeId, patientId));
+//         } else if (westranceEmployee) {
+//             dependents = await database
+//                 .select()
+//                 .from(addWestranceDependents)
+//                 .where(eq(addWestranceDependents.employeeId, patientId));
+//         }
+
+//         return res.status(200).json({
+//             employee: foundEmployee,
+//             dependents,
+//         });
+//     } catch (error) {
+//         console.error("Error searching patient by ID:", error);
+//         return res.status(500).json({ message: "Internal server error" });
+//     }
+// };
+
 export const SearchPatientById = async (req: Request, res: Response) => {
     try {
-        const { patientId } = req.query;
+        const { patientId, firstName, lastName } = req.query;
 
-        if (!patientId || typeof patientId !== "string") {
-            return res.status(400).json({ message: "Patient ID is required" });
+        const fName = typeof firstName === "string" ? firstName.trim() : undefined;
+        const lName = typeof lastName === "string" ? lastName.trim() : undefined;
+
+        if (!patientId && !fName && !lName) {
+            return res.status(400).json({ message: "Patient ID, firstName or lastName is required" });
         }
 
+        const buildWhereClause = (_table: any, idField: any, firstNameField: any, lastNameField: any) => {
+            const conditions: any[] = [];
+
+            if (patientId) conditions.push(eq(idField, patientId));
+            if (fName) conditions.push(eq(firstNameField, fName));
+            if (lName) conditions.push(eq(lastNameField, lName));
+
+            return or(...conditions);
+        };
+
         const [employee] = await database
-            .select({ id: addEmployee.id, userId: addEmployee.userId, companyUserId: addEmployee.companyUserId, employeeId: addEmployee.employeeId, firstName: addEmployee.firstName, middleName: addEmployee.middleName, lastName: addEmployee.lastName, emailAddress: addEmployee.emailAddress, registrationNumber: addEmployee.registrationNumber, startingDate: addEmployee.startingDate, duration: addEmployee.duration, inPatientAmount: addEmployee.inPatientAmount, outPatientAmount: addEmployee.outPatientAmount, benefits: addEmployee.benefits, createPassword: addEmployee.createPassword, profileImage: addEmployee.profileImage, dependents: addEmployee.dependents, role: addEmployee.role, isActive: addEmployee.isActive })
+            .select({
+                id: addEmployee.id, userId: addEmployee.userId, companyUserId: addEmployee.companyUserId, employeeId: addEmployee.employeeId, firstName: addEmployee.firstName, middleName: addEmployee.middleName, lastName: addEmployee.lastName, emailAddress: addEmployee.emailAddress, registrationNumber: addEmployee.registrationNumber, startingDate: addEmployee.startingDate, duration: addEmployee.duration, inPatientAmount: addEmployee.inPatientAmount, outPatientAmount: addEmployee.outPatientAmount, benefits: addEmployee.benefits, createPassword: addEmployee.createPassword, profileImage: addEmployee.profileImage, dependents: addEmployee.dependents, role: addEmployee.role, isActive: addEmployee.isActive
+            })
             .from(addEmployee)
-            .where(eq(addEmployee.employeeId, patientId));
+            .where(buildWhereClause(addEmployee, addEmployee.employeeId, addEmployee.firstName, addEmployee.lastName));
 
         const [hospitalemployee] = await database
-            .select({ id: addHospitalEmployee.id, userId: addHospitalEmployee.userId, companyUserId: addHospitalEmployee.companyUserId, employeeId: addHospitalEmployee.employeeId, firstName: addHospitalEmployee.firstName, middleName: addHospitalEmployee.middleName, lastName: addHospitalEmployee.lastName, emailAddress: addHospitalEmployee.emailAddress, registrationNumber: addHospitalEmployee.registrationNumber, startingDate: addHospitalEmployee.startingDate, duration: addHospitalEmployee.duration, inPatientAmount: addHospitalEmployee.inPatientAmount, outPatientAmount: addHospitalEmployee.outPatientAmount, benefits: addHospitalEmployee.benefits, createPassword: addHospitalEmployee.createPassword, profileImage: addHospitalEmployee.profileImage, dependents: addHospitalEmployee.dependents, role: addHospitalEmployee.role, isActive: addHospitalEmployee.isActive })
+            .select({
+                id: addHospitalEmployee.id, userId: addHospitalEmployee.userId, companyUserId: addHospitalEmployee.companyUserId, employeeId: addHospitalEmployee.employeeId, firstName: addHospitalEmployee.firstName, middleName: addHospitalEmployee.middleName, lastName: addHospitalEmployee.lastName, emailAddress: addHospitalEmployee.emailAddress, registrationNumber: addHospitalEmployee.registrationNumber, startingDate: addHospitalEmployee.startingDate, duration: addHospitalEmployee.duration, inPatientAmount: addHospitalEmployee.inPatientAmount, outPatientAmount: addHospitalEmployee.outPatientAmount, benefits: addHospitalEmployee.benefits, createPassword: addHospitalEmployee.createPassword, profileImage: addHospitalEmployee.profileImage, dependents: addHospitalEmployee.dependents, role: addHospitalEmployee.role, isActive: addHospitalEmployee.isActive
+            })
             .from(addHospitalEmployee)
-            .where(eq(addHospitalEmployee.employeeId, patientId));
+            .where(buildWhereClause(addHospitalEmployee, addHospitalEmployee.employeeId, addHospitalEmployee.firstName, addHospitalEmployee.lastName));
 
         const [westranceEmployee] = await database
-            .select({ id: WestranceEmployee.id, userId: WestranceEmployee.userId, companyUserId: WestranceEmployee.companyUserId, employeeId: WestranceEmployee.employeeId, firstName: WestranceEmployee.firstName, middleName: WestranceEmployee.middleName, lastName: WestranceEmployee.lastName, emailAddress: WestranceEmployee.emailAddress, registrationNumber: WestranceEmployee.registrationNumber, startingDate: WestranceEmployee.startingDate, duration: WestranceEmployee.duration, inPatientAmount: WestranceEmployee.inPatientAmount, outPatientAmount: WestranceEmployee.outPatientAmount, benefits: WestranceEmployee.benefits, createPassword: WestranceEmployee.createPassword, profileImage: WestranceEmployee.profileImage, dependents: WestranceEmployee.dependents, role: WestranceEmployee.role, isActive: WestranceEmployee.isActive })
+            .select({
+                id: WestranceEmployee.id, userId: WestranceEmployee.userId, companyUserId: WestranceEmployee.companyUserId, employeeId: WestranceEmployee.employeeId, firstName: WestranceEmployee.firstName, middleName: WestranceEmployee.middleName, lastName: WestranceEmployee.lastName, emailAddress: WestranceEmployee.emailAddress, registrationNumber: WestranceEmployee.registrationNumber, startingDate: WestranceEmployee.startingDate, duration: WestranceEmployee.duration, inPatientAmount: WestranceEmployee.inPatientAmount, outPatientAmount: WestranceEmployee.outPatientAmount, benefits: WestranceEmployee.benefits, createPassword: WestranceEmployee.createPassword, profileImage: WestranceEmployee.profileImage, dependents: WestranceEmployee.dependents, role: WestranceEmployee.role, isActive: WestranceEmployee.isActive
+            })
             .from(WestranceEmployee)
-            .where(eq(WestranceEmployee.employeeId, patientId));
+            .where(buildWhereClause(WestranceEmployee, WestranceEmployee.employeeId, WestranceEmployee.firstName, WestranceEmployee.lastName));
 
-        let foundEmployee = employee || hospitalemployee || westranceEmployee;
+        const foundEmployee = employee || hospitalemployee || westranceEmployee;
 
         if (!foundEmployee) {
             return res.status(404).json({ message: "Patient not found" });
         }
 
         let dependents: any[] = [];
+        const actualEmployeeId = foundEmployee.employeeId
+
         if (employee) {
             dependents = await database
                 .select()
                 .from(addDependents)
-                .where(eq(addDependents.employeeId, patientId));
+                .where(eq(addDependents.employeeId, actualEmployeeId));
         } else if (hospitalemployee) {
             dependents = await database
                 .select()
                 .from(addHospitalDependents)
-                .where(eq(addHospitalDependents.employeeId, patientId));
+                .where(eq(addHospitalDependents.employeeId, actualEmployeeId));
         } else if (westranceEmployee) {
             dependents = await database
                 .select()
                 .from(addWestranceDependents)
-                .where(eq(addWestranceDependents.employeeId, patientId));
+                .where(eq(addWestranceDependents.employeeId, actualEmployeeId));
         }
 
         return res.status(200).json({
@@ -64,7 +165,7 @@ export const SearchPatientById = async (req: Request, res: Response) => {
             dependents,
         });
     } catch (error) {
-        console.error("Error searching patient by ID:", error);
+        console.error("Error searching patient:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -655,6 +756,8 @@ export const getPatientByNameAndId = async (req: AuthenticatedRequest, res: Resp
                 employeeId: addEmployee.employeeId,
                 firstName: addEmployee.firstName,
                 lastName: addEmployee.lastName,
+                inPatientAmount: addEmployee.inPatientAmount,
+                outPatientAmount: addEmployee.outPatientAmount
             })
             .from(addEmployee)
             .where(empConditions.length ? and(...empConditions) : undefined);
@@ -694,6 +797,8 @@ export const getPatientByNameAndId = async (req: AuthenticatedRequest, res: Resp
                 employeeId: addHospitalEmployee.employeeId,
                 firstName: addHospitalEmployee.firstName,
                 lastName: addHospitalEmployee.lastName,
+                inPatientAmount: addHospitalEmployee.inPatientAmount,
+                outPatientAmount: addHospitalEmployee.outPatientAmount
             })
             .from(addHospitalEmployee)
             .where(hospConditions.length ? and(...hospConditions) : undefined);
@@ -733,6 +838,8 @@ export const getPatientByNameAndId = async (req: AuthenticatedRequest, res: Resp
                 employeeId: WestranceEmployee.employeeId,
                 firstName: WestranceEmployee.firstName,
                 lastName: WestranceEmployee.lastName,
+                inPatientAmount: WestranceEmployee.inPatientAmount,
+                outPatientAmount: WestranceEmployee.outPatientAmount
             })
             .from(WestranceEmployee)
             .where(westranceConditions.length ? and(...westranceConditions) : undefined);
